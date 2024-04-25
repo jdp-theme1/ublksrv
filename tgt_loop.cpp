@@ -8,29 +8,74 @@
 
 static bool user_copy;
 
-static bool backing_supports_discard(char *name)
+static int read_sysfs_file(const char *dev, const char *attr, unsigned long *res)
 {
-	int fd;
-	char buf[512];
-	int len;
+	int fd, len;
+	char buf[1024];
 
-	len = snprintf(buf, 512, "/sys/block/%s/queue/discard_max_hw_bytes",
-			basename(name));
+	len = snprintf(buf, 1024, "/sys/block/%s/queue/%s", dev, attr);
+	if (len >= 1024)
+		return -EINVAL;
 	buf[len] = 0;
 	fd = open(buf, O_RDONLY);
 	if (fd > 0) {
 		char val[128];
 		int ret = pread(fd, val, 128, 0);
-		unsigned long long bytes = 0;
 
 		close(fd);
 		if (ret > 0)
-			bytes = strtol(val, NULL, 10);
-
-		if (bytes > 0)
-			return true;
+			*res = strtol(val, NULL, 10);
+		return ret;
 	}
-	return false;
+	return -EINVAL;
+}
+
+static bool setup_block_backing_discard(const char *name,
+		struct ublk_param_discard *discard)
+{
+	int ret;
+	unsigned long val;
+
+	ret = read_sysfs_file(name, "discard_max_bytes", &val);
+	if (ret < 0)
+		return false;
+
+	discard->max_discard_sectors = val >> 9;
+
+	ret = read_sysfs_file(name, "discard_granularity", &val);
+	if (ret > 0)
+		discard->discard_granularity = val;
+	else
+		discard->discard_granularity = 4096;
+
+	ret = read_sysfs_file(name, "write_zeroes_max_bytes", &val);
+	if (ret > 0)
+		discard->max_write_zeroes_sectors = val >> 9;
+	else
+		discard->max_write_zeroes_sectors = 0;
+
+	return true;
+}
+
+static const char *partition_to_disk(char *name, char *real_path)
+{
+	int ret, len;
+	char buf[1024];
+	unsigned long val;
+
+	name = basename(name);
+	ret = read_sysfs_file(name, "logical_block_size", &val);
+	if (ret >= 0)
+		return name;
+
+	// maybe it is one partition
+	len = snprintf(buf, 1024, "/sys/class/block/%s/../", name);
+	if (len >= 1024)
+		return name;
+	buf[len] = 0;
+
+	realpath(buf, real_path);
+	return basename(real_path);
 }
 
 static int loop_setup_tgt(struct ublksrv_dev *dev, int type, bool recovery,
@@ -169,6 +214,10 @@ static int loop_init_tgt(struct ublksrv_dev *dev, int type, int argc, char
 
 	if (S_ISBLK(st.st_mode)) {
 		unsigned int bs, pbs;
+		char realpath[1024];
+		const char *disk_name = partition_to_disk(file, realpath);
+
+		//ublk_err("block backing %s %s\n", file, diskname);
 
 		if (ioctl(fd, BLKGETSIZE64, &bytes) != 0)
 			return -1;
@@ -178,7 +227,7 @@ static int loop_init_tgt(struct ublksrv_dev *dev, int type, int argc, char
 			return -1;
 		p.basic.logical_bs_shift = ilog2(bs);
 		p.basic.physical_bs_shift = ilog2(pbs);
-		can_discard = backing_supports_discard(file);
+		can_discard = setup_block_backing_discard(disk_name, &p.discard);
 	} else if (S_ISREG(st.st_mode)) {
 		bytes = st.st_size;
 		can_discard = true;
