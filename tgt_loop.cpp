@@ -7,6 +7,7 @@
 #include "ublksrv_tgt.h"
 
 static bool user_copy;
+static bool block_device;
 
 static int read_sysfs_file(const char *dev, const char *attr, unsigned long *res)
 {
@@ -227,10 +228,12 @@ static int loop_init_tgt(struct ublksrv_dev *dev, int type, int argc, char
 			return -1;
 		p.basic.logical_bs_shift = ilog2(bs);
 		p.basic.physical_bs_shift = ilog2(pbs);
+		block_device = true;
 		can_discard = setup_block_backing_discard(disk_name, &p.discard);
 	} else if (S_ISREG(st.st_mode)) {
 		bytes = st.st_size;
 		can_discard = true;
+		block_device = false;
 		p.basic.logical_bs_shift = ilog2(st.st_blksize);
 		p.basic.physical_bs_shift = ilog2(st.st_blksize);
 	} else {
@@ -282,7 +285,7 @@ static inline int loop_fallocate_mode(const struct ublksrv_io_desc *iod)
 
        /* follow logic of linux kernel loop */
        if (ublk_op == UBLK_IO_OP_DISCARD) {
-               mode |= FALLOC_FL_PUNCH_HOLE;
+		mode |= FALLOC_FL_PUNCH_HOLE;
        } else if (ublk_op == UBLK_IO_OP_WRITE_ZEROES) {
                if (flags & UBLK_IO_F_NOUNMAP)
                        mode |= FALLOC_FL_ZERO_RANGE;
@@ -447,7 +450,19 @@ static int loop_handle_io_async(const struct ublksrv_queue *q,
 {
 	struct ublk_io_tgt *io = __ublk_get_io_tgt_data(data);
 
-	io->co = __loop_handle_io_async(q, data, data->tag);
+	if (block_device && ublksrv_get_op(data->iod) == UBLK_IO_OP_DISCARD) {
+		__u64 r[2];
+		int res;
+
+		io_uring_submit(q->ring_ptr);
+
+		r[0] = data->iod->start_sector << 9;
+		r[1] = data->iod->nr_sectors << 9;
+		res = ioctl(q->dev->tgt.fds[1], BLKDISCARD, &r);
+		ublksrv_complete_io(q, data->tag, res);
+	} else {
+		io->co = __loop_handle_io_async(q, data, data->tag);
+	}
 	return 0;
 }
 
