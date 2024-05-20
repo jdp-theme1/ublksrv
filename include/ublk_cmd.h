@@ -227,6 +227,7 @@ struct ublksrv_ctrl_dev_info {
 	__u32	owner_gid;	/* store by kernel */
 	__u64	reserved1;
 	__u64   reserved2;
+	__u32	ublk_delay;
 };
 
 #define		UBLK_IO_OP_READ		0
@@ -348,5 +349,5 @@ struct ublk_params {
 	struct ublk_param_discard	discard;
 	struct ublk_param_devt		devt;
 };
-
+#define UBLK_DELAY_OPTION           (1 << 0)
 #endif

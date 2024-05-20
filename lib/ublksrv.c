@@ -208,12 +208,14 @@ int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 			else if(s%9999 == 0) {usleep(300);}
 			else if(s%999 == 0) {usleep(200);}
 			else if(s%99 == 0) {usleep(100);}
+			else usleep(50);
 			break;
 		case UBLK_IO_OP_WRITE: 
 			if(s%99999 == 0) {usleep(5000);}
 			else if(s%9999 == 0) {usleep(3000);}
 			else if(s%999 == 0) {usleep(2000);}
 			else if(s%99 == 0) {usleep(1000);}
+			else usleep(50);
 			break;
 		default:
 			break;

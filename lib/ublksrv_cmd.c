@@ -159,6 +159,7 @@ struct ublksrv_ctrl_dev *ublksrv_ctrl_init(struct ublksrv_dev_data *data)
 	info->max_io_buf_bytes = data->max_io_buf_bytes;
 	info->flags = data->flags;
 	info->ublksrv_flags = data->ublksrv_flags;
+	info->ublk_delay = data->ublk_delay_flag;
 
 	dev->run_dir = data->run_dir;
 	dev->tgt_type = data->tgt_type;
@@ -455,7 +456,7 @@ void ublksrv_ctrl_dump(struct ublksrv_ctrl_dev *dev, const char *jbuf)
 			p.devt.char_major, p.devt.char_minor,
 			p.devt.disk_major, p.devt.disk_minor,
 			info->owner_uid, info->owner_gid);
-
+	printf("Share memory address is %d\n", 0xffaa);
 	if (jbuf) {
 		char buf[512];
 

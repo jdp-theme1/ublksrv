@@ -674,7 +674,9 @@ static void ublksrv_tgt_set_params(struct ublksrv_ctrl_dev *cdev,
 				dev_id, ret);
 	}
 }
-
+int shm_creater(){
+	return 0;
+}
 static int cmd_dev_add(int argc, char *argv[])
 {
 	static const struct option longopts[] = {
@@ -690,6 +692,7 @@ static int cmd_dev_add(int argc, char *argv[])
 		{ "debug_mask",	1,	NULL, 0},
 		{ "unprivileged",	0,	NULL, 0},
 		{ "usercopy",	0,	NULL, 0},
+		{ "sharemem",	1,	NULL, 's'}, // KCC add share memory label 2024/05/20
 		{ NULL }
 	};
 	struct ublksrv_dev_data data = {0};
@@ -704,6 +707,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	const char *dump_buf;
 	int option_index = 0;
 	unsigned int debug_mask = 0;
+	unsigned int ttt = 0;
 
 	data.queue_depth = DEF_QD;
 	data.nr_hw_queues = DEF_NR_HW_QUEUES;
@@ -711,8 +715,8 @@ static int cmd_dev_add(int argc, char *argv[])
 	data.run_dir = UBLKSRV_PID_DIR;
 
 	mkpath(data.run_dir);
-
-	while ((opt = getopt_long(argc, argv, "-:t:n:d:q:u:g:r:i:z",
+	
+	while ((opt = getopt_long(argc, argv, "-:t:n:d:q:u:g:r:i:z:s",// KCC add share memory label 2024/05/20 << :s
 				  longopts, &option_index)) != -1) {
 		switch (opt) {
 		case 'n':
@@ -742,6 +746,14 @@ static int cmd_dev_add(int argc, char *argv[])
 		case 'i':
 			user_recovery_reissue = strtol(optarg, NULL, 10);
 			break;
+		//KCC add << Start 
+		case 's':
+			printf("Argv: *******");
+			ttt = strtol(optarg, NULL, 16);
+			printf("Allocate share memory with key: 0x%x\n", ttt); 
+			data.ublk_delay_flag=1; 
+			break;
+		//KCC add
 		case 0:
 			if (!strcmp(longopts[option_index].name, "debug_mask"))
 				debug_mask = strtol(optarg, NULL, 16);
@@ -770,7 +782,6 @@ static int cmd_dev_add(int argc, char *argv[])
 		data.flags |= UBLK_F_USER_RECOVERY | UBLK_F_USER_RECOVERY_REISSUE;
 	if (unprivileged)
 		data.flags |= UBLK_F_UNPRIVILEGED_DEV;
-
 	if (data.tgt_type == NULL) {
 		fprintf(stderr, "no dev type specified\n");
 		return -EINVAL;
