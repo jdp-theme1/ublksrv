@@ -227,6 +227,7 @@ struct ublksrv_ctrl_dev_info {
 	__u32	owner_gid;	/* store by kernel */
 	__u64	reserved1;
 	__u64   reserved2;
+	__u64   mxic_delay; /*KCC Add delay*/
 };
 
 #define		UBLK_IO_OP_READ		0

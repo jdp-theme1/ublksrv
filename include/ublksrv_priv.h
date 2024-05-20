@@ -72,7 +72,7 @@ struct ublk_io {
 #define UBLKSRV_IO_FREE			(1UL << 2)
 #define UBLKSRV_NEED_GET_DATA		(1UL << 3)
 	unsigned int flags;
-
+	
 	/* result is updated after all target ios are done */
 	unsigned int result;
 
