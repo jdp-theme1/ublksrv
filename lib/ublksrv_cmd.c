@@ -159,7 +159,6 @@ struct ublksrv_ctrl_dev *ublksrv_ctrl_init(struct ublksrv_dev_data *data)
 	info->max_io_buf_bytes = data->max_io_buf_bytes;
 	info->flags = data->flags;
 	info->ublksrv_flags = data->ublksrv_flags;
-	info->ublk_delay = data->ublk_delay_flag;//KCC add
 
 	dev->run_dir = data->run_dir;
 	dev->tgt_type = data->tgt_type;

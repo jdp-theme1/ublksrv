@@ -61,7 +61,6 @@ struct ublksrv_dev_data {
 	unsigned long	flags;
 	unsigned long	ublksrv_flags;
 	unsigned long   reserved[7];
-	unsigned int	ublk_delay_flag; //KCC add
 };
 
 /**
