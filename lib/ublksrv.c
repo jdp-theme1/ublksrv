@@ -187,6 +187,35 @@ static inline int ublksrv_queue_io_cmd(struct _ublksrv_queue *q,
 	return 1;
 }
 
+int ublksrv_delay_module(int ublk_op){	
+	int s = rand();
+	switch (ublk_op) {
+		case UBLK_IO_OP_FLUSH:
+			break;
+		case UBLK_IO_OP_WRITE_SAME:
+		case UBLK_IO_OP_WRITE_ZEROES:
+		case UBLK_IO_OP_DISCARD:
+			break;
+		case UBLK_IO_OP_READ:
+			if(s%99999 == 0) usleep(100);
+			else if(s%9999 == 0) usleep(50);
+			else if(s%999 == 0) usleep(30);
+			else if(s%99 == 0) usleep(10);
+			else usleep(5);
+			break;
+		case UBLK_IO_OP_WRITE: 
+			if(s%99999 == 0) usleep(500);
+			else if(s%9999 == 0) usleep(300);
+			else if(s%999 == 0) usleep(200);
+			else if(s%99 == 0) usleep(150);
+			else usleep(100);
+			break;
+		default:
+			break;
+	}
+	// // KCC Add Latency << End
+}
+
 int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 {
 	struct _ublksrv_queue *q = tq_to_local(tq);
@@ -196,31 +225,8 @@ int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 	struct ublk_io_data *data = &io->data; 
 	const struct ublksrv_io_desc *iod = data->iod; 
 	unsigned ublk_op = ublksrv_get_op(iod);
-	int s = rand();
-	switch (ublk_op) {
-		case UBLK_IO_OP_FLUSH:
-			break;
-		case UBLK_IO_OP_WRITE_ZEROES:
-		case UBLK_IO_OP_DISCARD:
-			break;
-		case UBLK_IO_OP_READ:
-			if(s%99999 == 0) usleep(1000);
-			else if(s%9999 == 0) usleep(500);
-			else if(s%999 == 0) usleep(300);
-			else if(s%99 == 0) usleep(200);
-			else usleep(50);
-			break;
-		case UBLK_IO_OP_WRITE: 
-			if(s%99999 == 0) usleep(5000);
-			else if(s%9999 == 0) usleep(3000);
-			else if(s%999 == 0) usleep(2000);
-			else if(s%99 == 0) usleep(1000);
-			else usleep(100);
-			break;
-		default:
-			break;
-	}
-	// // KCC Add Latency << End
+	ublksrv_delay_module(ublk_op);
+	// KCC Add Latency << End
 	ublksrv_mark_io_done(io, res);
 
 	return ublksrv_queue_io_cmd(q, io, tag);

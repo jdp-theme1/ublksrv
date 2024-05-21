@@ -2,7 +2,8 @@
 
 #include "config.h"
 #include "ublksrv_tgt.h"
-
+#include <sys/shm.h>
+#include <sys/ipc.h>
 /* per-task variable */
 static pthread_mutex_t jbuf_lock;
 static int jbuf_size = 0;
@@ -674,7 +675,22 @@ static void ublksrv_tgt_set_params(struct ublksrv_ctrl_dev *cdev,
 				dev_id, ret);
 	}
 }
+int shm_creater(unsigned int key){
+	int *shm;
+	int shmid;
+	int input;
 
+	shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+	shmat(shmid, NULL, 0);
+	while(1){
+		printf("input: ");
+		scanf("%d", &input);
+		if(input == -1) break;
+		else *shm=input;
+	}
+
+	return 0;
+}
 static int cmd_dev_add(int argc, char *argv[])
 {
 	static const struct option longopts[] = {
@@ -690,7 +706,9 @@ static int cmd_dev_add(int argc, char *argv[])
 		{ "debug_mask",	1,	NULL, 0},
 		{ "unprivileged",	0,	NULL, 0},
 		{ "usercopy",	0,	NULL, 0},
-		{ NULL }
+		{ "sharemem",	1,	NULL, 's'}, // KCC add share memory label 2024/05/20
+		{0,				0,	0,		0}
+		//{ NULL }
 	};
 	struct ublksrv_dev_data data = {0};
 	struct ublksrv_ctrl_dev *dev;
@@ -704,6 +722,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	const char *dump_buf;
 	int option_index = 0;
 	unsigned int debug_mask = 0;
+	unsigned int shm_key = 0;
 
 	data.queue_depth = DEF_QD;
 	data.nr_hw_queues = DEF_NR_HW_QUEUES;
@@ -711,21 +730,23 @@ static int cmd_dev_add(int argc, char *argv[])
 	data.run_dir = UBLKSRV_PID_DIR;
 
 	mkpath(data.run_dir);
-
-	while ((opt = getopt_long(argc, argv, "-:t:n:d:q:u:g:r:i:z",
+	
+	while ((opt = getopt_long(argc, argv, "-:t:n:d:q:u:g:r:i:z:s",// KCC add share memory label 2024/05/20 << :s
 				  longopts, &option_index)) != -1) {
+		printf("opt = %c\n", opt);
 		switch (opt) {
 		case 'n':
 			data.dev_id = strtol(optarg, NULL, 10);
 			break;
 		case 't':
+			printf("optarg = %s\n", optarg);
 			data.tgt_type = optarg;
 			break;
 		case 'z':
 			data.flags |= UBLK_F_SUPPORT_ZERO_COPY;
 			break;
 		case 'q':
-			data.nr_hw_queues = strtol(optarg, NULL, 10);
+			data.nr_hw_queues = strtol(optarg, NULL, 10);			
 			break;
 		case 'd':
 			data.queue_depth = strtol(optarg, NULL, 10);
@@ -742,6 +763,18 @@ static int cmd_dev_add(int argc, char *argv[])
 		case 'i':
 			user_recovery_reissue = strtol(optarg, NULL, 10);
 			break;
+		//KCC add << Start 
+		case 's':
+			printf("optarg = %s\n", optarg);
+			shm_key = strtol(optarg, NULL, 16);
+			if (shm_key == 0) {
+				fprintf(stderr, "Error\n");
+				return -EINVAL;
+			}
+			printf("Allocate share memory with key: 0x%x\n", shm_key); 
+			shm_creater(shm_key);
+			break;
+		//KCC add
 		case 0:
 			if (!strcmp(longopts[option_index].name, "debug_mask"))
 				debug_mask = strtol(optarg, NULL, 16);
@@ -750,6 +783,9 @@ static int cmd_dev_add(int argc, char *argv[])
 			if (!strcmp(longopts[option_index].name, "usercopy"))
 				data.flags |= UBLK_F_USER_COPY;
 			break;
+		default:
+			printf("Parameter Error!!\n");
+			return -EINVAL;
 		}
 	}
 
@@ -770,7 +806,6 @@ static int cmd_dev_add(int argc, char *argv[])
 		data.flags |= UBLK_F_USER_RECOVERY | UBLK_F_USER_RECOVERY_REISSUE;
 	if (unprivileged)
 		data.flags |= UBLK_F_UNPRIVILEGED_DEV;
-
 	if (data.tgt_type == NULL) {
 		fprintf(stderr, "no dev type specified\n");
 		return -EINVAL;
@@ -873,7 +908,8 @@ static void cmd_dev_add_usage(const char *cmd)
 	printf("\t-n DEV_ID -q NR_HW_QUEUES -d QUEUE_DEPTH\n");
 	printf("\t-u URING_COMP -g NEED_GET_DATA -r USER_RECOVERY\n");
 	printf("\t-i USER_RECOVERY_REISSUE --debug_mask=0x{DBG_MASK}\n");
-	printf("\t--unprivileged\n\n");
+	printf("\t--unprivileged\n");
+	printf("\t-s SHARE_MEMROY_KEY\n\n");
 	printf("\ttarget specific command line:\n");
 	ublksrv_for_each_tgt_type(show_tgt_add_usage, NULL);
 }
