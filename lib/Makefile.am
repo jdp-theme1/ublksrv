@@ -7,7 +7,8 @@ libublksrv_la_SOURCES = \
 	ublksrv_json.cpp \
 	ublksrv.c \
 	utils.c \
-	ublksrv_aio.c
+	ublksrv_aio.c \
+	ublksrv_delay.c
 libublksrv_la_CFLAGS = \
 	$(WARNING_CFLAGS) \
 	$(LIBURING_CFLAGS) \

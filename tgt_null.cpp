@@ -15,7 +15,7 @@ static int null_init_tgt(struct ublksrv_dev *dev, int type, int argc,
 	struct ublksrv_tgt_base_json tgt_json = {
 		.type = type,
 	};
-	unsigned long long dev_size = 250UL * 1024 * 1024 * 1024;
+	unsigned long long dev_size = 250UL * 1024 * 1024 * 1024; //KCC for 250G check
 	struct ublk_params p = {
 		.types = UBLK_PARAM_TYPE_BASIC,
 		.basic = {

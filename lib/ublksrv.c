@@ -7,7 +7,8 @@
 
 #include "ublksrv_priv.h"
 #include "ublksrv_aio.h"
-
+#include "queue.h"
+#include "ublksrv_delay.h"
 static inline struct ublksrv_io_desc *ublksrv_get_iod(
 		const struct _ublksrv_queue *q, int tag)
 {
@@ -187,34 +188,6 @@ static inline int ublksrv_queue_io_cmd(struct _ublksrv_queue *q,
 	return 1;
 }
 
-int ublksrv_delay_module(int ublk_op){	
-	int s = rand();
-	switch (ublk_op) {
-		case UBLK_IO_OP_FLUSH:
-			break;
-		case UBLK_IO_OP_WRITE_SAME:
-		case UBLK_IO_OP_WRITE_ZEROES:
-		case UBLK_IO_OP_DISCARD:
-			break;
-		case UBLK_IO_OP_READ:
-			if(s%99999 == 0) usleep(100);
-			else if(s%9999 == 0) usleep(50);
-			else if(s%999 == 0) usleep(30);
-			else if(s%99 == 0) usleep(10);
-			else usleep(5);
-			break;
-		case UBLK_IO_OP_WRITE: 
-			if(s%99999 == 0) usleep(500);
-			else if(s%9999 == 0) usleep(300);
-			else if(s%999 == 0) usleep(200);
-			else if(s%99 == 0) usleep(150);
-			else usleep(100);
-			break;
-		default:
-			break;
-	}
-	// // KCC Add Latency << End
-}
 
 int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 {

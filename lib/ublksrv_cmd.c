@@ -455,8 +455,6 @@ void ublksrv_ctrl_dump(struct ublksrv_ctrl_dev *dev, const char *jbuf)
 			p.devt.char_major, p.devt.char_minor,
 			p.devt.disk_major, p.devt.disk_minor,
 			info->owner_uid, info->owner_gid);
-	if(info->mxic_delay == 1)
-		printf("Share memory address is %d\n", 0xffaa);
 	
 	if (jbuf) {
 		char buf[512];
