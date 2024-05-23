@@ -446,7 +446,7 @@ static void ublksrv_io_handler(void *data)
 		ublk_err( "dev-%d start ubsrv failed", dev_id);
 		goto out;
 	}
-
+	ublk_log("KCC is here, %d\n", dev->ctrl_dev->latency_flag);
 	setup_pthread_sigmask();
 
 	if (!(dinfo->flags & UBLK_F_UNPRIVILEGED_DEV))
@@ -686,9 +686,10 @@ static int cmd_dev_add(int argc, char *argv[])
 		{ "need_get_data",	1,	NULL, 'g' },
 		{ "user_recovery",	1,	NULL, 'r'},
 		{ "user_recovery_reissue",	1,	NULL, 'i'},
+		{ "delay",	0,	NULL, 'k'},
 		{ "debug_mask",	1,	NULL, 0},
 		{ "unprivileged",	0,	NULL, 0},
-		{ "usercopy",	0,	NULL, 0},
+		{ "usercopy",	0,	NULL, 0},		
 		{ NULL }
 	};
 	struct ublksrv_dev_data data = {0};
@@ -703,6 +704,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	const char *dump_buf;
 	int option_index = 0;
 	unsigned int debug_mask = 0;
+	int user_enable_delay = 0;
 
 	data.queue_depth = DEF_QD;
 	data.nr_hw_queues = DEF_NR_HW_QUEUES;
@@ -711,7 +713,7 @@ static int cmd_dev_add(int argc, char *argv[])
 
 	mkpath(data.run_dir);
 
-	while ((opt = getopt_long(argc, argv, "-:t:n:d:q:u:g:r:i:z",
+	while ((opt = getopt_long(argc, argv, "-:t:n:d:q:u:g:r:i:z", //"-:t:n:d:q:u:g:r:i:z
 				  longopts, &option_index)) != -1) {
 		switch (opt) {
 		case 'n':
@@ -741,6 +743,8 @@ static int cmd_dev_add(int argc, char *argv[])
 		case 'i':
 			user_recovery_reissue = strtol(optarg, NULL, 10);
 			break;
+		case 'k':
+			user_enable_delay = 1;
 		case 0:
 			if (!strcmp(longopts[option_index].name, "debug_mask"))
 				debug_mask = strtol(optarg, NULL, 16);
@@ -748,12 +752,19 @@ static int cmd_dev_add(int argc, char *argv[])
 				unprivileged = 1;
 			if (!strcmp(longopts[option_index].name, "usercopy"))
 				data.flags |= UBLK_F_USER_COPY;
+			
 			break;
 		}
 	}
 
 	ublk_set_debug_mask(debug_mask);
-
+	/* KCC Add delay Start */
+	if(user_enable_delay == 1){
+		data.enable_delay = user_enable_delay;
+		//fprintf(stderr, "Latency Module Enabled %d\n",data.enable_delay);
+		ublk_dbg(UBLK_DBG_DEV, "ublk delay enabled\n");
+	}
+	/* KCC Add delay End */
 	data.max_io_buf_bytes = DEF_BUF_SIZE;
 	if (data.nr_hw_queues > MAX_NR_HW_QUEUES)
 		data.nr_hw_queues = MAX_NR_HW_QUEUES;
@@ -791,7 +802,7 @@ static int cmd_dev_add(int argc, char *argv[])
 		fprintf(stderr, "can't init dev %d\n", data.dev_id);
 		return -ENODEV;
 	}
-
+	
 	ret = ublksrv_ctrl_add_dev(dev);
 	if (ret < 0) {
 		fprintf(stderr, "can't add dev %d, ret %d\n", data.dev_id, ret);
@@ -872,7 +883,7 @@ static void cmd_dev_add_usage(const char *cmd)
 	printf("\t-n DEV_ID -q NR_HW_QUEUES -d QUEUE_DEPTH\n");
 	printf("\t-u URING_COMP -g NEED_GET_DATA -r USER_RECOVERY\n");
 	printf("\t-i USER_RECOVERY_REISSUE --debug_mask=0x{DBG_MASK}\n");
-	printf("\t--unprivileged\n\n");
+	printf("\t--unprivileged --delay\n\n");
 	printf("\ttarget specific command line:\n");
 	ublksrv_for_each_tgt_type(show_tgt_add_usage, NULL);
 }

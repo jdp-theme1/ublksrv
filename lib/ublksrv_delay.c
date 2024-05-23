@@ -4,54 +4,70 @@
 #include <sys/resource.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <bits/types.h>
+#include <time.h>
 
 #include "ublksrv_priv.h"
 #include "ublksrv_aio.h"
 #include "queue.h"
+#include "ublksrv_delay.h"
+
+// static inline uint64_t rdtsc(void) {
+//     unsigned int lo, hi;
+//     // Use inline assembly to read the TSC
+//     __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+//     return ((uint64_t)hi << 32) | lo;
+// }
+
+// unsigned int ublksrv_get_current_tick() {
+//     unsigned int ticks = rdtsc();
+//     printf("CPU ticks: %u\n", ticks);
+//     ublk_dbg(UBLK_DBG_IO_CMD, "CPU ticks: %u\n", ticks);
+//     return ticks;
+// }
+
 
 static inline uint64_t rdtsc(void) {
-    unsigned int lo, hi;
-    // Use inline assembly to read the TSC
-    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
-    return ((uint64_t)hi << 32) | lo;
+	    uint32_t lo, hi;
+	        __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+		    return ((uint64_t)hi << 32) | lo;
 }
 
-unsigned int ublksrv_get_current_tick() {
-    unsigned int ticks = rdtsc();
-    printf("CPU ticks: %u\n", ticks);
-    ublk_dbg(UBLK_DBG_IO_CMD, "CPU ticks: %u\n", ticks);
-    return ticks;
-}
-// 獲取 CPU 時鐘頻率
-unsigned long long get_cpu_frequency() {
+uint64_t get_cpu_frequency() {
     struct timespec ts_start, ts_end;
     uint64_t start, end;
-    // 獲取開始時間和開始 TSC
-    clock_gettime(CLOCK_REALTIME, &ts_start);
+    uint64_t elapsed_ns;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts_start);
     start = rdtsc();
-    // 睡眠 1 秒
-    sleep(1);
-    // 獲取結束時間和結束 TSC
-    clock_gettime(CLOCK_REALTIME, &ts_end);
+
+    do {
+    clock_gettime(CLOCK_MONOTONIC, &ts_end);
+    elapsed_ns = (ts_end.tv_sec - ts_start.tv_sec) * 1000000000LL + (ts_end.tv_nsec - ts_start.tv_nsec);
+    } while (elapsed_ns < 1000000000LL); // 忙等待 100 毫秒
     end = rdtsc();
-    // 計算 TSC 增量
     uint64_t elapsed_tsc = end - start;
-    return elapsed_tsc; // 每秒的 TSC 週期數
-    }
-    int main() {
+
+    return (elapsed_tsc * 10); // 將 100 毫秒內的 TSC 週期數轉換為每秒的週期數
+}
+
+uint64_t
+ublksrv_get_current_tick(){
+    // uint64_t ticks_mhz = spdk_get_ticks_hz() / 0;
+    // ublk_dbg(UBLK_DBG_IO_CMD, "CPU ticks_mhz: %ld\n", ticks_mhz);
+    // uint64_t clock_tick = clock();
+    // ublk_dbg(UBLK_DBG_IO_CMD, "CPU clock_tick: %ld\n", clock_tick);
     uint64_t cpu_frequency = get_cpu_frequency();
-    printf("CPU frequency: %llu Hz\n", cpu_frequency);
-    // 假設我們想要將微秒轉換為 TSC 週期數
-    uint64_t us = 1000; // 例如，1000 微秒
-    uint64_t ticks = (cpu_frequency * us) / 1000000;
-    printf("%llu us corresponds to %llu ticks\n", us, ticks);
-    return 0;
+    printf("CPU frequency: %ld Hz\n", cpu_frequency);
+    ublk_dbg(UBLK_DBG_IO_CMD, "CPU clock_tick: %ld\n", cpu_frequency);
+    return cpu_frequency;
 }
 int ublksrv_delay_module(int ublk_op){
 	int s = rand();
 	// Get Start tick
-    ublksrv_get_current_tick();
-	switch (ublk_op) {
+    //ublksrv_get_current_tick();
+    //usleep(1000000);
+	/*switch (ublk_op) {
 		case UBLK_IO_OP_FLUSH:
 			break;
 		case UBLK_IO_OP_WRITE_SAME:
@@ -74,5 +90,10 @@ int ublksrv_delay_module(int ublk_op){
 			break;
 		default:
 			break;
-	}
+	}*/
+    //ublksrv_get_current_tick();
+}
+
+int ublk_delay_init(){
+
 }

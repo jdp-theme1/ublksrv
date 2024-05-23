@@ -165,7 +165,7 @@ struct ublksrv_ctrl_dev *ublksrv_ctrl_init(struct ublksrv_dev_data *data)
 	dev->tgt_ops = data->tgt_ops;
 	dev->tgt_argc = data->tgt_argc;
 	dev->tgt_argv = data->tgt_argv;
-
+	dev->latency_flag = data->enable_delay;
 	/* 32 is enough to send ctrl commands */
 	ret = ublksrv_setup_ring(&dev->ring, 32, 32, IORING_SETUP_SQE128);
 	if (ret < 0) {

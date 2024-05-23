@@ -61,6 +61,7 @@ struct ublksrv_dev_data {
 	unsigned long	flags;
 	unsigned long	ublksrv_flags;
 	unsigned long   reserved[7];
+	int enable_delay;
 };
 
 /**

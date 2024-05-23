@@ -62,6 +62,8 @@ struct ublksrv_ctrl_dev {
 	cpu_set_t *queues_cpuset;
 
 	unsigned long reserved[4];
+	/* Add latency flag*/
+	int latency_flag; // KCC Added
 };
 
 struct ublk_io {

@@ -724,6 +724,7 @@ const struct ublksrv_dev *ublksrv_dev_init(const struct ublksrv_ctrl_dev *ctrl_d
 
 	if (!dev)
 		return local_to_tdev(dev);
+	
 
 	tgt = &dev->tgt;
 	dev->ctrl_dev = ctrl_dev;
@@ -753,7 +754,7 @@ const struct ublksrv_dev *ublksrv_dev_init(const struct ublksrv_ctrl_dev *ctrl_d
 				dev_id, ret);
 		goto fail;
 	}
-
+	
 	return local_to_tdev(dev);
 fail:
 	ublksrv_dev_deinit(local_to_tdev(dev));
