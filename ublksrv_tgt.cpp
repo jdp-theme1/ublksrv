@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "ublksrv_tgt.h"
+#include "ublksrv_delay.h"
 
 /* per-task variable */
 static pthread_mutex_t jbuf_lock;
@@ -446,7 +447,7 @@ static void ublksrv_io_handler(void *data)
 		ublk_err( "dev-%d start ubsrv failed", dev_id);
 		goto out;
 	}
-	ublk_log("KCC is here, %d\n", dev->ctrl_dev->latency_flag);
+	//ublk_log("KCC is here, %d\n", dev->ctrl_dev->latency_flag);
 	setup_pthread_sigmask();
 
 	if (!(dinfo->flags & UBLK_F_UNPRIVILEGED_DEV))
@@ -761,7 +762,6 @@ static int cmd_dev_add(int argc, char *argv[])
 	/* KCC Add delay Start */
 	if(user_enable_delay == 1){
 		data.enable_delay = user_enable_delay;
-		//fprintf(stderr, "Latency Module Enabled %d\n",data.enable_delay);
 		ublk_dbg(UBLK_DBG_DEV, "ublk delay enabled\n");
 	}
 	/* KCC Add delay End */
@@ -833,6 +833,12 @@ static int cmd_dev_add(int argc, char *argv[])
 	ret = ublksrv_ctrl_get_info(dev);
 	ublksrv_ctrl_dump(dev, dump_buf);
 	ublksrv_ctrl_deinit(dev);
+
+	if(user_enable_delay){
+		ublk_log("start to create delay demand thread\n");
+		ublk_get_cpu_frequency();
+	}
+
 	return 0;
 
  fail_stop_daemon:

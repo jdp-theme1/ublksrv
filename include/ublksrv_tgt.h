@@ -21,6 +21,7 @@
 
 #include "ublksrv_utils.h"
 #include "ublksrv.h"
+#include "ublksrv_delay.h"
 
 #define ublk_assert(x)  do { \
 	if (!(x)) {	\
