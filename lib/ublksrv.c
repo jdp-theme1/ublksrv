@@ -196,7 +196,7 @@ int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 	struct ublk_io *io = &q->ios[tag];
 	// KCC Add Latency << Start
 	ublk_dbg(UBLK_DBG_IO_CMD, "q->dev->delay_enable %d\n", q->dev->delay_enable);
-	if(q->dev->delay_enable){
+	//if(q->dev->delay_enable){
 		struct ublk_io_data *data = &io->data; 
 		const struct ublksrv_io_desc *iod = data->iod; 
 		unsigned ublk_op = ublksrv_get_op(iod);	
@@ -206,7 +206,7 @@ int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 		ublk_dbg(UBLK_DBG_IO_CMD, "op_flags = %d, nr_sectors = %d, start_sector = %lld, addr = %lld, q_depth = %d\n", \
 					iod->op_flags, iod->nr_sectors, iod->start_sector, iod->addr, q->dev->delay_enable);
 		ublksrv_delay_module(ublk_op);
-	}
+	//}
 	// KCC Add Latency << End
 	ublksrv_mark_io_done(io, res);
 

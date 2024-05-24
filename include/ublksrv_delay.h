@@ -14,7 +14,7 @@
 #include "ublksrv_utils.h"
 
 extern int ublksrv_delay_module(int ublk_op);
-extern int ublk_get_cpu_frequency();
+extern void ublk_get_cpu_frequency();
 extern int ublk_get_cpu_frequency_by_tick();
 
 #endif

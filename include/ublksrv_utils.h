@@ -51,6 +51,7 @@ static inline void ublksrv_printf(FILE *stream, const char *fmt, ...) {}
 #define	UBLK_DBG_IO		(1U << 3)
 #define	UBLK_DBG_CTRL_CMD	(1U << 4)
 
+
 #ifdef DEBUG
 extern void ublk_dbg(int level, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));

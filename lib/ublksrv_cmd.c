@@ -159,6 +159,7 @@ struct ublksrv_ctrl_dev *ublksrv_ctrl_init(struct ublksrv_dev_data *data)
 	info->max_io_buf_bytes = data->max_io_buf_bytes;
 	info->flags = data->flags;
 
+
 	dev->run_dir = data->run_dir;
 	dev->tgt_type = data->tgt_type;
 	dev->tgt_ops = data->tgt_ops;
@@ -274,11 +275,11 @@ static int __ublksrv_ctrl_add_dev(struct ublksrv_ctrl_dev *dev, unsigned cmd_op)
 		.addr = (__u64)&dev->dev_info,
 		.len = sizeof(struct ublksrv_ctrl_dev_info),
 	};
-	int user_enable_delay = dev->latency_flag;
-	ublk_log("start to create delay demand %d, %d\n", user_enable_delay, dev->latency_flag);
+	//int user_enable_delay = dev->latency_flag;
+	// ublk_log("start to create delay demand %d\n", dev->latency_flag);
 	//KCC add for delay << start
-	if(user_enable_delay){
-		// ublk_log("start to create delay demand*******\n");
+	if(dev->latency_flag){
+		ublk_dbg(UBLK_DBG_DEV, "Start to get CPU clock rate\n");
 		ublk_get_cpu_frequency();
 	}
 	//KCC add for delay << end

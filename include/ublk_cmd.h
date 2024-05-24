@@ -264,7 +264,7 @@ struct ublksrv_io_desc {
 	__u64		addr;
 
 	/* KCC record start tick count*/
-	__u64		start_ticks;
+	// __u64		start_ticks;
 };
 
 static inline __u8 ublksrv_get_op(const struct ublksrv_io_desc *iod)

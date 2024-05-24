@@ -448,7 +448,7 @@ static void ublksrv_io_handler(void *data)
 		ublk_err( "dev-%d start ubsrv failed", dev_id);
 		goto out;
 	}
-	//ublk_log("KCC is here, %d\n", dev->ctrl_dev->latency_flag);
+	
 	setup_pthread_sigmask();
 
 	if (!(dinfo->flags & UBLK_F_UNPRIVILEGED_DEV))
@@ -687,11 +687,11 @@ static int cmd_dev_add(int argc, char *argv[])
 		{ "uring_comp",		1,	NULL, 'u' },
 		{ "need_get_data",	1,	NULL, 'g' },
 		{ "user_recovery",	1,	NULL, 'r'},
-		{ "user_recovery_reissue",	1,	NULL, 'i'},
-		{ "delay",	0,	NULL, 'k'},
+		{ "user_recovery_reissue",	1,	NULL, 'i'},		
 		{ "debug_mask",	1,	NULL, 0},
 		{ "unprivileged",	0,	NULL, 0},
 		{ "usercopy",	0,	NULL, 0},		
+		{ "delay",	0,	NULL, 'k'},
 		{ NULL }
 	};
 	struct ublksrv_dev_data data = {0};
@@ -758,14 +758,9 @@ static int cmd_dev_add(int argc, char *argv[])
 			break;
 		}
 	}
-
+	
 	ublk_set_debug_mask(debug_mask);
-	/* KCC Add delay Start */
-	data.enable_delay = user_enable_delay;
-	if(data.enable_delay == 1){		
-		ublk_dbg(UBLK_DBG_DEV, "ublk delay enabled\n");
-	}
-	/* KCC Add delay End */
+	
 	data.max_io_buf_bytes = DEF_BUF_SIZE;
 	if (data.nr_hw_queues > MAX_NR_HW_QUEUES)
 		data.nr_hw_queues = MAX_NR_HW_QUEUES;
@@ -795,6 +790,13 @@ static int cmd_dev_add(int argc, char *argv[])
 	data.flags |= tgt_type->ublk_flags;
 	data.ublksrv_flags |= tgt_type->ublksrv_flags;
 
+	/* KCC Add delay Start */
+	data.enable_delay = user_enable_delay;
+	if(data.enable_delay == 1){		
+		ublk_dbg(UBLK_DBG_DEV, "ublk delay enabled\n");
+	}
+	/* KCC Add delay End */
+
 	//optind = 0;	/* so that tgt code can parse their arguments */
 	data.tgt_argc = argc;
 	data.tgt_argv = argv;
@@ -809,7 +811,7 @@ static int cmd_dev_add(int argc, char *argv[])
 		fprintf(stderr, "can't add dev %d, ret %d\n", data.dev_id, ret);
 		goto fail;
 	}
-
+	
 	{
 		const struct ublksrv_ctrl_dev_info *info =
 			ublksrv_ctrl_get_dev_info(dev);
@@ -834,7 +836,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	ret = ublksrv_ctrl_get_info(dev);
 	ublksrv_ctrl_dump(dev, dump_buf);
 	ublksrv_ctrl_deinit(dev);
-
+	
 	
 	return 0;
 
