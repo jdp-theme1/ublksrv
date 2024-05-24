@@ -3,7 +3,7 @@
 #include <config.h>
 
 #include "ublksrv_priv.h"
-
+#include "ublksrv_delay.h" // KCC add temp
 #define	CTRL_DEV	"/dev/ublk-control"
 
 #define CTRL_CMD_HAS_DATA	1
@@ -158,7 +158,7 @@ struct ublksrv_ctrl_dev *ublksrv_ctrl_init(struct ublksrv_dev_data *data)
 	info->queue_depth = data->queue_depth;
 	info->max_io_buf_bytes = data->max_io_buf_bytes;
 	info->flags = data->flags;
-	info->ublksrv_flags = data->ublksrv_flags;
+	info->ublksrv_flags = data->enable_delay;
 
 	dev->run_dir = data->run_dir;
 	dev->tgt_type = data->tgt_type;
@@ -275,7 +275,14 @@ static int __ublksrv_ctrl_add_dev(struct ublksrv_ctrl_dev *dev, unsigned cmd_op)
 		.addr = (__u64)&dev->dev_info,
 		.len = sizeof(struct ublksrv_ctrl_dev_info),
 	};
-
+	int user_enable_delay = dev->latency_flag;
+	ublk_log("start to create delay demand******* %d, %d\n", user_enable_delay, dev->latency_flag);
+	//KCC add for delay << start
+	if(user_enable_delay){
+		// ublk_log("start to create delay demand*******\n");
+		ublk_get_cpu_frequency();
+	}
+	//KCC add for delay << end
 	return __ublksrv_ctrl_cmd(dev, &data);
 }
 

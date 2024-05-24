@@ -7,8 +7,9 @@
 #include <bits/types.h>
 #include <time.h>
 
-#include "ublksrv_priv.h"
-#include "ublksrv_aio.h"
+// #include "ublksrv.h"
+// #include "ublksrv_aio.h"
+
 #include "queue.h"
 #include "ublksrv_delay.h"
 
@@ -27,7 +28,7 @@ void get_time(struct timespec* ts) {
 
 static uint64_t CPU_FREQ;
 /*KCC add for Get CPU freq*/
-int ublk_get_cpu_frequency() {
+int ublk_get_cpu_frequency_by_file() {
     FILE* fp = fopen("/proc/cpuinfo", "r");
     if (fp == NULL) {
         perror("fopen");
@@ -48,6 +49,51 @@ int ublk_get_cpu_frequency() {
 	CPU_FREQ = frequency * 1e6; // transform to Hz
     //return frequency * 1e6; // transform to Hz
 }
+void set_cpu_affinity() {
+	cpu_set_t cpuset;
+	pthread_t current_thread = pthread_self();
+
+	// 初始化CPU集合，將CPU 0加入集合
+	CPU_ZERO(&cpuset);
+	CPU_SET(0, &cpuset);
+
+	// 設定當前執行緒的CPU親和性
+	int ret = pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+	if (ret != 0) {
+		perror("pthread_setaffinity_np");
+	}
+}
+
+int ublk_get_cpu_frequency() {
+	struct timespec start, end;
+	uint64_t start_ticks, end_ticks;
+	double elapsed_time, cpu_frequency;
+
+	// 設定當前執行緒的CPU親和性
+	// set_cpu_affinity();
+
+	// 取得開始時間和rdtsc值
+	get_time(&start);
+	start_ticks = rdtsc();
+
+	// 等待1秒
+	sleep(1);
+
+	// 取得結束時間和rdtsc值
+	get_time(&end);
+	end_ticks = rdtsc();
+
+	// 計算時間差
+	elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+
+	// 計算CPU頻率
+	cpu_frequency = (end_ticks - start_ticks) / elapsed_time;
+	CPU_FREQ = (uint64_t)cpu_frequency;
+	ublk_dbg(UBLK_DBG_IO_CMD, "Estimated CPU frequency: %ld\n", CPU_FREQ);
+	printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
+
+	return 0;
+}
 
 void ublksrv_delay_ns(uint64_t delay){
     ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", CPU_FREQ);
@@ -58,7 +104,7 @@ void ublksrv_delay_ns(uint64_t delay){
 		ublk_log("delaying, %ld", current_ticks);
 		current_ticks = rdtsc();
 	}
-	ublk_log("Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
+	ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
 }
 
 void ublksrv_delay_us(uint64_t delay){
@@ -70,7 +116,7 @@ void ublksrv_delay_us(uint64_t delay){
 		ublk_dbg(UBLK_DBG_IO_CMD,"delaying, %ld", current_ticks);
 		current_ticks = rdtsc();
 	}
-	ublk_log("Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
+	ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
 }
 
 int ublksrv_delay_module(int ublk_op){
@@ -85,20 +131,20 @@ int ublksrv_delay_module(int ublk_op){
 		case UBLK_IO_OP_DISCARD:
 			break;
 		case UBLK_IO_OP_READ:
-			/*if(s%99999 == 0) ublksrv_delay_us(100);
+			if(s%99999 == 0) ublksrv_delay_us(100);
 			else if(s%9999 == 0) ublksrv_delay_us(50);
 			else if(s%999 == 0) ublksrv_delay_us(30);
 			else if(s%99 == 0) ublksrv_delay_us(10);
-			else ublksrv_delay_us(5);*/
-			ublksrv_delay_us(100);
+			else ublksrv_delay_us(5);
+			//ublksrv_delay_us(100);
 			break;
 		case UBLK_IO_OP_WRITE: 
-			/*if(s%99999 == 0) ublksrv_delay_us(500);
+			if(s%99999 == 0) ublksrv_delay_us(500);
 			else if(s%9999 == 0) ublksrv_delay_us(300);
 			else if(s%999 == 0) ublksrv_delay_us(200);
 			else if(s%99 == 0) ublksrv_delay_us(150);
-			else ublksrv_delay_us(100);*/
-			ublksrv_delay_us(200);
+			else ublksrv_delay_us(100);
+			//ublksrv_delay_us(200);
 			break;
 		default:
 			break;

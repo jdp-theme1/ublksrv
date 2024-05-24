@@ -2,8 +2,9 @@
 
 #include "config.h"
 #include "ublksrv_tgt.h"
+// extern "C"{
 #include "ublksrv_delay.h"
-
+// }
 /* per-task variable */
 static pthread_mutex_t jbuf_lock;
 static int jbuf_size = 0;
@@ -760,8 +761,8 @@ static int cmd_dev_add(int argc, char *argv[])
 
 	ublk_set_debug_mask(debug_mask);
 	/* KCC Add delay Start */
-	if(user_enable_delay == 1){
-		data.enable_delay = user_enable_delay;
+	data.enable_delay = user_enable_delay;
+	if(data.enable_delay == 1){		
 		ublk_dbg(UBLK_DBG_DEV, "ublk delay enabled\n");
 	}
 	/* KCC Add delay End */
@@ -834,11 +835,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	ublksrv_ctrl_dump(dev, dump_buf);
 	ublksrv_ctrl_deinit(dev);
 
-	if(user_enable_delay){
-		ublk_log("start to create delay demand thread\n");
-		ublk_get_cpu_frequency();
-	}
-
+	
 	return 0;
 
  fail_stop_daemon:
