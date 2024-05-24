@@ -122,7 +122,7 @@ static void ublksrv_tgt_deinit(struct _ublksrv_dev *dev)
 		tgt->ops->deinit_tgt(local_to_tdev(dev));
 }
 
-static inline int ublksrv_queue_io_cmd(struct _ublksrv_queue *q,
+static inline int ublksrv_queue_io_cmd(struct _ublksrv_queue *q, // KCC execute queue submission operation
 		struct ublk_io *io, unsigned tag)
 {
 	struct ublksrv_io_cmd *cmd;
@@ -195,10 +195,18 @@ int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 
 	struct ublk_io *io = &q->ios[tag];
 	// KCC Add Latency << Start
-	struct ublk_io_data *data = &io->data; 
-	const struct ublksrv_io_desc *iod = data->iod; 
-	unsigned ublk_op = ublksrv_get_op(iod);
-	ublksrv_delay_module(ublk_op);
+	ublk_dbg(UBLK_DBG_IO_CMD, "q->dev->delay_enable %d\n", q->dev->delay_enable);
+	if(q->dev->delay_enable){
+		struct ublk_io_data *data = &io->data; 
+		const struct ublksrv_io_desc *iod = data->iod; 
+		unsigned ublk_op = ublksrv_get_op(iod);	
+		uint32_t nr_sectors = iod->nr_sectors;
+		uint32_t start_addr = iod->start_sector;
+		
+		ublk_dbg(UBLK_DBG_IO_CMD, "op_flags = %d, nr_sectors = %d, start_sector = %lld, addr = %lld, q_depth = %d\n", \
+					iod->op_flags, iod->nr_sectors, iod->start_sector, iod->addr, q->dev->delay_enable);
+		ublksrv_delay_module(ublk_op);
+	}
 	// KCC Add Latency << End
 	ublksrv_mark_io_done(io, res);
 
@@ -508,7 +516,7 @@ static void ublksrv_calculate_depths(const struct _ublksrv_dev *dev, int
 	*cq_depth = dev->cq_depth ? dev->cq_depth : depth;
 }
 
-const struct ublksrv_queue *ublksrv_queue_init(const struct ublksrv_dev *tdev,
+const struct ublksrv_queue *ublksrv_queue_init(const struct ublksrv_dev *tdev, //KCC check ublksrv init queue
 		unsigned short q_id, void *queue_data)
 {
 	struct _ublksrv_dev *dev = tdev_to_local(tdev);
@@ -637,7 +645,7 @@ skip_alloc_buf:
 	}
 
 	if (ctrl_dev->queues_cpuset)
-		ublksrv_set_sched_affinity(dev, q_id);
+		ublksrv_set_sched_affinity(dev, q_id);  // KCC for checking the CPU affinity
 
 	setpriority(PRIO_PROCESS, getpid(), -20);
 
@@ -910,7 +918,7 @@ static void ublksrv_submit_aio_batch(struct _ublksrv_queue *q)
 	}
 }
 
-int ublksrv_process_io(const struct ublksrv_queue *tq)
+int ublksrv_process_io(const struct ublksrv_queue *tq)//Jeff start io handle
 {
 	struct _ublksrv_queue *q = tq_to_local(tq);
 	int ret, reapped;

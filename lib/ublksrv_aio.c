@@ -231,7 +231,6 @@ void ublksrv_aio_handle_event(struct ublksrv_aio_ctx *ctx,
 	aio_list_splice(&compl->list, &al);
 	ublksrv_queue_handled_event(q);
 	pthread_spin_unlock(&compl->lock);
-
 	while ((req = aio_list_pop(&al))) {
 		ublksrv_complete_io(q, ublksrv_aio_tag(req->id),
 				req->res);

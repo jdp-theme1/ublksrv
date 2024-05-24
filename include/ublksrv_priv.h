@@ -63,7 +63,7 @@ struct ublksrv_ctrl_dev {
 
 	unsigned long reserved[4];
 	/* Add latency flag*/
-	int latency_flag; // KCC Added
+	bool latency_flag; // KCC Added
 };
 
 struct ublk_io {
@@ -150,6 +150,8 @@ struct _ublksrv_dev {
 
 	/* reserved isn't necessary any more */
 	unsigned long reserved[3];
+	bool delay_enable;
+
 };
 
 #define local_to_tq(q)	((struct ublksrv_queue *)(q))

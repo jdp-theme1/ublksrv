@@ -158,7 +158,6 @@ struct ublksrv_ctrl_dev *ublksrv_ctrl_init(struct ublksrv_dev_data *data)
 	info->queue_depth = data->queue_depth;
 	info->max_io_buf_bytes = data->max_io_buf_bytes;
 	info->flags = data->flags;
-	info->ublksrv_flags = data->enable_delay;
 
 	dev->run_dir = data->run_dir;
 	dev->tgt_type = data->tgt_type;
@@ -177,7 +176,7 @@ struct ublksrv_ctrl_dev *ublksrv_ctrl_init(struct ublksrv_dev_data *data)
 	return dev;
 }
 
-/* queues_cpuset is only used for setting up queue pthread daemon */
+/* queues_cpuset is only used for setting up queue pthread daemon */ //KCC check for affinity
 int ublksrv_ctrl_get_affinity(struct ublksrv_ctrl_dev *ctrl_dev)
 {
 	struct ublksrv_ctrl_cmd_data data = {
@@ -276,7 +275,7 @@ static int __ublksrv_ctrl_add_dev(struct ublksrv_ctrl_dev *dev, unsigned cmd_op)
 		.len = sizeof(struct ublksrv_ctrl_dev_info),
 	};
 	int user_enable_delay = dev->latency_flag;
-	ublk_log("start to create delay demand******* %d, %d\n", user_enable_delay, dev->latency_flag);
+	ublk_log("start to create delay demand %d, %d\n", user_enable_delay, dev->latency_flag);
 	//KCC add for delay << start
 	if(user_enable_delay){
 		// ublk_log("start to create delay demand*******\n");

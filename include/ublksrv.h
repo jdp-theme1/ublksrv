@@ -61,7 +61,7 @@ struct ublksrv_dev_data {
 	unsigned long	flags;
 	unsigned long	ublksrv_flags;
 	unsigned long   reserved[7];
-	int enable_delay;
+	bool enable_delay;
 };
 
 /**
@@ -164,6 +164,7 @@ struct ublksrv_tgt_info {
 	unsigned int iowq_max_workers[2];
 
 	unsigned long reserved[4];
+	bool delay_enable;
 };
 
 /**

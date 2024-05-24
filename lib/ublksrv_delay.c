@@ -28,6 +28,7 @@ void get_time(struct timespec* ts) {
 
 static uint64_t CPU_FREQ;
 /*KCC add for Get CPU freq*/
+/*
 int ublk_get_cpu_frequency_by_file() {
     FILE* fp = fopen("/proc/cpuinfo", "r");
     if (fp == NULL) {
@@ -53,16 +54,17 @@ void set_cpu_affinity() {
 	cpu_set_t cpuset;
 	pthread_t current_thread = pthread_self();
 
-	// 初始化CPU集合，將CPU 0加入集合
+	// init CPU set and join cpu 0 into cpuset
 	CPU_ZERO(&cpuset);
 	CPU_SET(0, &cpuset);
-
-	// 設定當前執行緒的CPU親和性
+ 
+	// set affinity for current thread
 	int ret = pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
 	if (ret != 0) {
 		perror("pthread_setaffinity_np");
 	}
 }
+*/
 
 int ublk_get_cpu_frequency() {
 	struct timespec start, end;
@@ -98,7 +100,7 @@ int ublk_get_cpu_frequency() {
 void ublksrv_delay_ns(uint64_t delay){
     ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", CPU_FREQ);
 	uint64_t start_ticks = rdtsc();
-	uint64_t end_ticks = start_ticks + delay * CPU_FREQ * 1e-9;
+	uint64_t end_ticks = start_ticks + delay * CPU_FREQ * 1e-9; //select tick by nano seconds
 	uint64_t current_ticks = rdtsc();
 	while(current_ticks <= end_ticks) {
 		ublk_log("delaying, %ld", current_ticks);
@@ -110,7 +112,7 @@ void ublksrv_delay_ns(uint64_t delay){
 void ublksrv_delay_us(uint64_t delay){
     ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", CPU_FREQ);
 	uint64_t start_ticks = rdtsc();
-	uint64_t end_ticks = start_ticks + delay * CPU_FREQ * 1e-6;
+	uint64_t end_ticks = start_ticks + delay * CPU_FREQ * 1e-6; //select tick by micro seconds
 	uint64_t current_ticks = start_ticks;
 	while(current_ticks <= end_ticks) {
 		ublk_dbg(UBLK_DBG_IO_CMD,"delaying, %ld", current_ticks);
@@ -139,10 +141,10 @@ int ublksrv_delay_module(int ublk_op){
 			//ublksrv_delay_us(100);
 			break;
 		case UBLK_IO_OP_WRITE: 
-			if(s%99999 == 0) ublksrv_delay_us(500);
-			else if(s%9999 == 0) ublksrv_delay_us(300);
-			else if(s%999 == 0) ublksrv_delay_us(200);
-			else if(s%99 == 0) ublksrv_delay_us(150);
+			if(s%99999 == 0) ublksrv_delay_us(5000);
+			else if(s%9999 == 0) ublksrv_delay_us(3000);
+			else if(s%999 == 0) ublksrv_delay_us(2000);
+			else if(s%99 == 0) ublksrv_delay_us(1500);
 			else ublksrv_delay_us(100);
 			//ublksrv_delay_us(200);
 			break;
