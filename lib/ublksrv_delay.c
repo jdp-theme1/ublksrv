@@ -9,6 +9,7 @@
 
 // #include "ublksrv.h"
 // #include "ublksrv_aio.h"
+#include <sched.h>
 
 #include "queue.h"
 #include "ublksrv_delay.h"
@@ -17,37 +18,37 @@ struct ublksrv_delay_read
 {
 	/* data */
 	uint32_t base;
-	uint32_t p99;
-	uint32_t p999;
-	uint32_t p9999;
-	uint32_t p99999;
+	uint32_t p29;
+	uint32_t p39;
+	uint32_t p49;
+	uint32_t p59;
 };
 struct ublksrv_delay_write
 {
 	/* data */
 	uint32_t base;
-	uint32_t p99;
-	uint32_t p999;
-	uint32_t p9999;
-	uint32_t p99999;
+	uint32_t p29;
+	uint32_t p39;
+	uint32_t p49;
+	uint32_t p59;
 };
 struct ublksrv_delay_gc
 {
 	/* data */
 	uint32_t base;
-	uint32_t p99;
-	uint32_t p999;
-	uint32_t p9999;
-	uint32_t p99999;
+	uint32_t p29;
+	uint32_t p39;
+	uint32_t p49;
+	uint32_t p59;
 };
 struct ublksrv_delay_wl
 {
 	/* data */
 	uint32_t base;
-	uint32_t p99;
-	uint32_t p999;
-	uint32_t p9999;
-	uint32_t p99999;
+	uint32_t p29;
+	uint32_t p39;
+	uint32_t p49;
+	uint32_t p59;
 };
 
 
@@ -55,6 +56,12 @@ struct ublksrv_delay
 {
 	/* data */
 	uint64_t CPU_FREQ;
+	uint64_t last_end_lba;
+	// bitmap ro record used lba --> check bitmap --> if 0, set bit[LBA]=1 total_lba_cnt++.
+	uint64_t total_lba_cnt;
+	uint16_t choas_index;
+	double choas_learning_rate;
+	double gc_prob;
 	struct ublksrv_delay_read read_delay_table;
 	struct ublksrv_delay_write write_delay_table;
 	struct ublksrv_delay_gc gc_delay_table;
@@ -95,32 +102,32 @@ void set_cpu_affinity() {
 
 void ublk_delay_init_tables(){
 	// Add read delay parameter
-	delay_info.read_delay_table.base=5;
-	delay_info.read_delay_table.p99=50;
-	delay_info.read_delay_table.p999=200;
-	delay_info.read_delay_table.p9999=400;
-	delay_info.read_delay_table.p99999=800;
+	delay_info.read_delay_table.base	=	10;
+	delay_info.read_delay_table.p29		=	50;
+	delay_info.read_delay_table.p39		=	200;
+	delay_info.read_delay_table.p49		=	400;
+	delay_info.read_delay_table.p59		=	800;
 
 	// Add write delay parameter
-	delay_info.write_delay_table.base=50;
-	delay_info.write_delay_table.p99=500;
-	delay_info.write_delay_table.p999=1000;
-	delay_info.write_delay_table.p9999=2000;
-	delay_info.write_delay_table.p99999=4000;
+	delay_info.write_delay_table.base	=	50;
+	delay_info.write_delay_table.p29	=	500;
+	delay_info.write_delay_table.p39	=	1000;
+	delay_info.write_delay_table.p49	=	2000;
+	delay_info.write_delay_table.p59	=	4000;
 
 	// Add garbage collection delay parameter
-	delay_info.gc_delay_table.base=5;
-	delay_info.gc_delay_table.p99=5;
-	delay_info.gc_delay_table.p999=5;
-	delay_info.gc_delay_table.p9999=5;
-	delay_info.gc_delay_table.p99999=5;
+	delay_info.gc_delay_table.base	=	5;
+	delay_info.gc_delay_table.p29	=	5;
+	delay_info.gc_delay_table.p39	=	5;
+	delay_info.gc_delay_table.p49	=	5;
+	delay_info.gc_delay_table.p59	=	5;
 
 	// Add wear-leveling delay parameter
-	delay_info.wl_delay_table.base=5;
-	delay_info.wl_delay_table.p99=5;
-	delay_info.wl_delay_table.p999=5;
-	delay_info.wl_delay_table.p9999=5;
-	delay_info.wl_delay_table.p99999=5;
+	delay_info.wl_delay_table.base	=	5;
+	delay_info.wl_delay_table.p29	=	5;
+	delay_info.wl_delay_table.p39	=	5;
+	delay_info.wl_delay_table.p49	=	5;
+	delay_info.wl_delay_table.p59	=	5;
 
 }
 
@@ -162,20 +169,29 @@ void ublksrv_delay_ns(uint64_t delay){
 
 void ublksrv_delay_us(uint64_t delay){
 	uint64_t cpu_freq = delay_info.CPU_FREQ;
-    ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", cpu_freq);
+    // ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", cpu_freq);
+	// int startcpu = sched_getcpu();
+	// int curcpu = sched_getcpu();
+	// int endcpu = 0;
 	uint64_t start_ticks = rdtsc();
 	uint64_t end_ticks = start_ticks + delay * cpu_freq * 1e-6; //select tick by micro seconds
 	uint64_t current_ticks = start_ticks;
 	while(current_ticks <= end_ticks) {
 		ublk_dbg(UBLK_DBG_IO_CMD,"delaying, %ld", current_ticks);
 		current_ticks = rdtsc();
+		//curcpu = sched_getcpu();
+		//if(curcpu != startcpu)
+		//	ublk_dbg(UBLK_DBG_IO_CMD, "CPU changed from %d to %d\n", startcpu, curcpu);
 	}
 	ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
+	//endcpu =sched_getcpu();
+	//if(endcpu != startcpu)
+	//		ublk_dbg(UBLK_DBG_IO_CMD, "CPU changed from %d to %d\n", startcpu, endcpu);
+	
 }
-
-int ublksrv_delay_module(int ublk_op){
+int ublksrv_io_delay(int ublk_op){
 	int s = rand();
-	uint32_t delaytime = 0;
+	uint32_t iodelay = 0;
 	// Get Start tick
 	//ublksrv_delay_us(rdtsc(), 100);
 	switch (ublk_op) {
@@ -186,25 +202,30 @@ int ublksrv_delay_module(int ublk_op){
 		case UBLK_IO_OP_DISCARD:
 			break;
 		case UBLK_IO_OP_READ:
-			if(s%99999 == 0) 		delaytime = delay_info.read_delay_table.p99999;
-			else if(s%9999 == 0) 	delaytime = delay_info.read_delay_table.p9999;
-			else if(s%999 == 0) 	delaytime = delay_info.read_delay_table.p999;
-			else if(s%99 == 0) 		delaytime = delay_info.read_delay_table.p99;
-			else 					delaytime = delay_info.read_delay_table.base;
+			if(s%99999 == 0) 		iodelay = delay_info.read_delay_table.p59;
+			else if(s%9999 == 0) 	iodelay = delay_info.read_delay_table.p49;
+			else if(s%999 == 0) 	iodelay = delay_info.read_delay_table.p39;
+			else if(s%99 == 0) 		iodelay = delay_info.read_delay_table.p29;
+			else 					iodelay = delay_info.read_delay_table.base;
 			break;
 		case UBLK_IO_OP_WRITE: 
-			if(s%99999 == 0) 		delaytime = delay_info.write_delay_table.p99999;
-			else if(s%9999 == 0) 	delaytime = delay_info.write_delay_table.p9999;
-			else if(s%999 == 0) 	delaytime = delay_info.write_delay_table.p999;
-			else if(s%99 == 0) 		delaytime = delay_info.write_delay_table.p99;
-			else 					delaytime = delay_info.write_delay_table.base;
+			if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59;
+			else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49;
+			else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39;
+			else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29;
+			else 					iodelay = delay_info.write_delay_table.base;
 			break;
 		default:
 			break;
 	}
+	return iodelay;
+}
+
+int ublksrv_delay_module(int ublk_op){
+	uint32_t delaytime = 0;
+	if(delay_info.CPU_FREQ==0) return -1;
+	delaytime = ublksrv_io_delay(ublk_op);
 	ublksrv_delay_us(delaytime);
+	return 0;
 }
 
-int ublk_delay_init(){
-
-}
