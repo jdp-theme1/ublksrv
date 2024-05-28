@@ -201,7 +201,7 @@ void ublksrv_delay_us(uint64_t delay){
 
     //ublksrv_io_delay(ublk_op, iod->start_sector, iod->start_sector);  
 int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr){
-	uint64_t s = 0;
+	uint32_t s = 0;
 	uint32_t iodelay = 0;
 	// uint32_t nr_sectors = iod->nr_sectors;
 	// uint32_t start_addr = iod->start_sector;
@@ -225,7 +225,13 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			else 					iodelay = delay_info.read_delay_table.base;
 			break;
 		case UBLK_IO_OP_WRITE: 
-			if(sector_quo < 1){
+			s = rand();
+			if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59;
+			else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49;
+			else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39;
+			else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29;
+			else 					iodelay = delay_info.write_delay_table.base;
+			/*if(sector_quo < 1){
 				iodelay += delay_info.cache_lat;
 			} else {
 				iodelay += delay_info.cache_lat;
@@ -238,7 +244,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 					else 					iodelay = delay_info.write_delay_table.base;
 				}
 			}
-			delay_info.remain_sectors = sector_rem;
+			delay_info.remain_sectors = sector_rem;*/
 			break;
 		default:
 			break;
