@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <bits/types.h>
 #include <time.h>
-
+#include <math.h> // KCC for practice Gauss Dist
 #include "ublksrv.h"
 // #include "ublksrv_aio.h"
 #include <sched.h>
@@ -74,6 +74,22 @@ struct ublksrv_delay
 };
 
 static struct ublksrv_delay delay_info;
+
+double gaussrand() {
+	static double U, V;
+	static int phase = 0;
+	double Z;
+	double PI = 3.14159265358979323846;
+	if(phase == 0){
+		U = rand() / (RAND_MAX + 1.0);
+		V = rand() / (RAND_MAX + 1.0);
+		Z = sqrt(-2.0 * log(U))* sin(2.0 * PI * V);
+	}
+	else
+		Z = sqrt(-2.0 * log(U)) * cos(2.0 * PI * V);
+	phase = 1 - phase;
+	return Z;
+}
 
 uint64_t rdtsc() {
     uint32_t lo, hi;
@@ -159,7 +175,7 @@ void ublk_get_cpu_frequency() {
 	cpu_frequency = (end_ticks - start_ticks) / elapsed_time;
 	delay_info.CPU_FREQ = (uint64_t)cpu_frequency;
 	ublk_dbg(UBLK_DBG_IO_CMD, "Estimated CPU frequency: %ld\n", delay_info.CPU_FREQ);
-	printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
+	// printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
 	ublk_delay_init_tables();
 	//return 0;
 }
@@ -209,6 +225,10 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 	uint32_t sector_quo = totalblk / delay_info.size_of_superpage;
 	uint32_t sector_rem = totalblk % delay_info.size_of_superpage;
 	//srand(time(NULL));
+	uint64_t start_ticks = rdtsc();
+	double Z = gaussrand();
+	uint64_t end_ticks = rdtsc();
+	ublk_log("gause tick = %ld, run_time= %f us, result = %f", end_ticks-start_ticks, ((double)(end_ticks-start_ticks))/delay_info.CPU_FREQ*1000*1000, Z);
 	ublk_log("Start = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
 	switch (ublk_op) {
 		case UBLK_IO_OP_FLUSH:
@@ -235,14 +255,6 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 				iodelay += delay_info.cache_lat;
 			} else {
 				iodelay += delay_info.cache_lat;
-				/*for (int i=0; i<sector_quo; i++){
-					
-					if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59;
-					else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49;
-					else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39;
-					else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29;
-					else 					iodelay = delay_info.write_delay_table.base;
-				}*/
 				s = rand();
 				if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59*sector_quo;
 				else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49*sector_quo;
