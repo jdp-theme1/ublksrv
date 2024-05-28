@@ -252,8 +252,18 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			} else {
 				iodelay += delay_info.cache_lat;
 				for (int i; i<sector_quo; i++){
-					double Z = gaussrand();
-					iodelay += (342*Z+3398);
+					s = rand()%100000;
+					//double Z = gaussrand();
+					// iodelay += (342*Z+3398);
+					
+					if(sector_quo>=4){
+						iodelay += (67*1.3*log(s)+88);
+					} else{
+						iodelay += (67*log(s)+88);//(242*Z+200);
+					}
+				}
+				if(sector_quo>=4){
+					iodelay *= 1.3;
 				}
 				/*s = rand();
 				if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59*sector_quo;
