@@ -208,7 +208,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 	uint64_t totalblk = nr_sectors + delay_info.remain_sectors;
 	uint32_t sector_quo = totalblk / delay_info.size_of_superpage;
 	uint32_t sector_rem = totalblk % delay_info.size_of_superpage;
-	srand(time(NULL));
+	//srand(time(NULL));
 	ublk_log("Start = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
 	switch (ublk_op) {
 		case UBLK_IO_OP_FLUSH:
@@ -225,13 +225,13 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			else 					iodelay = delay_info.read_delay_table.base;
 			break;
 		case UBLK_IO_OP_WRITE: 
-			s = rand();
+			/*s = rand();
 			if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59;
 			else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49;
 			else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39;
 			else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29;
-			else 					iodelay = delay_info.write_delay_table.base;
-			/*if(sector_quo < 1){
+			else 	*/				iodelay = delay_info.write_delay_table.base;
+			if(sector_quo < 1){
 				iodelay += delay_info.cache_lat;
 			} else {
 				iodelay += delay_info.cache_lat;
@@ -244,7 +244,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 					else 					iodelay = delay_info.write_delay_table.base;
 				}
 			}
-			delay_info.remain_sectors = sector_rem;*/
+			delay_info.remain_sectors = sector_rem;
 			break;
 		default:
 			break;
