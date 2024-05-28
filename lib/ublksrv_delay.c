@@ -125,7 +125,7 @@ void ublk_delay_init_tables(){
 	delay_info.last_end_lba = 0;
 	delay_info.remain_sectors = 0;
 	delay_info.cache_lat = 5;
-	delay_info.size_of_superpage=65536/512;
+	delay_info.size_of_superpage=52488/512;
 
 	// Add read delay parameter
 	delay_info.read_delay_table.base	=	10;
@@ -224,12 +224,8 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 	uint64_t totalblk = nr_sectors + delay_info.remain_sectors;
 	uint32_t sector_quo = totalblk / delay_info.size_of_superpage;
 	uint32_t sector_rem = totalblk % delay_info.size_of_superpage;
-	//srand(time(NULL));
-	uint64_t start_ticks = rdtsc();
-	double Z = gaussrand();
-	uint64_t end_ticks = rdtsc();
-	ublk_log("gause tick = %ld, run_time= %f us, result = %f", end_ticks-start_ticks, ((double)(end_ticks-start_ticks))/delay_info.CPU_FREQ*1000*1000, Z);
-	ublk_log("Start = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
+	srand(time(NULL)); //Jeff add
+	// ublk_log("Start = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
 	switch (ublk_op) {
 		case UBLK_IO_OP_FLUSH:
 			break;
@@ -255,19 +251,23 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 				iodelay += delay_info.cache_lat;
 			} else {
 				iodelay += delay_info.cache_lat;
-				s = rand();
+				for (int i; i<sector_quo; i++){
+					double Z = gaussrand();
+					iodelay += (342*Z+3398);
+				}
+				/*s = rand();
 				if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59*sector_quo;
 				else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49*sector_quo;
 				else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39*sector_quo;
 				else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29*sector_quo;
-				else 					iodelay = delay_info.write_delay_table.base*sector_quo;
+				else 					iodelay = delay_info.write_delay_table.base*sector_quo;*/
 			}
 			delay_info.remain_sectors = sector_rem;
 			break;
 		default:
 			break;
 	}
-	ublk_log("end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
+	// ublk_log("end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
 	return iodelay;
 }
 
