@@ -230,7 +230,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49;
 			else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39;
 			else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29;
-			else 	*/				iodelay = delay_info.write_delay_table.base;
+			else 					iodelay = delay_info.write_delay_table.base;*/
 			if(sector_quo < 1){
 				iodelay += delay_info.cache_lat;
 			} else {
