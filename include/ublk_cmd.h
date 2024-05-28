@@ -263,8 +263,6 @@ struct ublksrv_io_desc {
 	/* buffer address in ublksrv daemon vm space, from ublk driver */
 	__u64		addr;
 
-	/* KCC record start tick count*/
-	// __u64		start_ticks;
 };
 
 static inline __u8 ublksrv_get_op(const struct ublksrv_io_desc *iod)

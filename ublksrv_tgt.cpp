@@ -374,7 +374,7 @@ static void *ublksrv_io_handler_fn(void *data)
 				dev_id, q_id);
 		return NULL;
 	}
-
+	
 	ublk_log("tid %d: ublk dev %d queue %d started", ublksrv_gettid(),
 			dev_id, q->q_id);
 	do {
@@ -794,6 +794,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	data.enable_delay = user_enable_delay;
 	if(data.enable_delay == 1){		
 		ublk_dbg(UBLK_DBG_DEV, "ublk delay enabled\n");
+		// printf("ublk delay enabled\n");
 	}
 	/* KCC Add delay End */
 
@@ -817,6 +818,7 @@ static int cmd_dev_add(int argc, char *argv[])
 			ublksrv_ctrl_get_dev_info(dev);
 		data.dev_id = info->dev_id;
 	}
+	// printf("delay = %d", dev);
 	ret = ublksrv_start_daemon(dev);
 	if (ret <= 0) {
 		fprintf(stderr, "start dev %d daemon failed, ret %d\n",
