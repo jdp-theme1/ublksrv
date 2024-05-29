@@ -178,7 +178,7 @@ void ublk_get_cpu_frequency() {
 	cpu_frequency = (end_ticks - start_ticks) / elapsed_time;
 	delay_info.CPU_FREQ = (uint64_t)cpu_frequency;
 	ublk_dbg(UBLK_DBG_IO_CMD, "Estimated CPU frequency: %ld\n", delay_info.CPU_FREQ);
-	printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
+	// printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
 	ublk_delay_init_tables();
 	//return 0;
 }
@@ -212,7 +212,7 @@ void ublksrv_delay_us(uint64_t delay){
 		//if(curcpu != startcpu)
 		//	ublk_dbg(UBLK_DBG_IO_CMD, "CPU changed from %d to %d\n", startcpu, curcpu);
 	}
-	// ublk_log("Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
+	// ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
 	// ublk_log("Counting Passed tick %ld, target delay = %ld, delay for %.2f us", current_ticks-start_ticks, delay, (double)((current_ticks-start_ticks))*1e6/delay_info.CPU_FREQ);
 	//endcpu =sched_getcpu();
 	//if(endcpu != startcpu)
