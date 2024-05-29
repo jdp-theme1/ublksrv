@@ -125,7 +125,7 @@ void ublk_delay_init_tables(){
 	delay_info.last_end_lba = 0;
 	delay_info.remain_sectors = 0;
 	delay_info.cache_lat = 5;
-	delay_info.size_of_superpage=52488/512;
+	delay_info.size_of_superpage=524288/512;
 
 	// Add read delay parameter
 	delay_info.read_delay_table.base	=	10;
