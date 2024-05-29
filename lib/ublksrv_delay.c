@@ -203,10 +203,9 @@ void ublksrv_delay_us(uint64_t delay){
 	uint64_t start_ticks = rdtsc();
 	uint64_t end_ticks = start_ticks + (uint64_t)((float)(delay) * 1e-6 * cpu_freq); //select tick by micro seconds
 	uint64_t current_ticks = start_ticks;
-	while(rdtsc() <= end_ticks);
-	/*while(current_ticks <= end_ticks) {
+	while(current_ticks <= end_ticks) {
 		current_ticks = rdtsc();
-	}*/
+	}
 	// ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
 }
 
