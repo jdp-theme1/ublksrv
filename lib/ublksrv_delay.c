@@ -123,6 +123,8 @@ void set_cpu_affinity() {
 }
 
 void ublk_delay_init_tables(){
+	/*struct ublksrv_ctrl_dev_info *devinfo = dev->dev_info;
+	printf("***---  %d\n", devinfo->max_io_buf_bytes);*/
 	delay_info.choas_index = 0;
 	delay_info.last_end_lba = 0;
 	delay_info.remain_sectors = 0;
@@ -238,19 +240,12 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 		case UBLK_IO_OP_DISCARD:
 			break;
 		case UBLK_IO_OP_READ:
-			/*if(s%99999 == 0) 		iodelay = delay_info.read_delay_table.p59;
-			else if(s%9999 == 0) 	iodelay = delay_info.read_delay_table.p49;
-			else if(s%999 == 0) 	iodelay = delay_info.read_delay_table.p39;
-			else if(s%99 == 0) 		iodelay = delay_info.read_delay_table.p29;
-			else 					iodelay = delay_info.read_delay_table.base;*/
+			/* KCC Read to_be_define*/
 			break;
 		case UBLK_IO_OP_WRITE: 
 			iodelay += delay_info.base_lat;
-			for (int i=0; i<sector_quo; i++){
-				double s = (double)(rand()%100000)/1000;
-				iodelay += (uint64_t)(676*log(s)+880);
-				// ublk_log("Jeff sq = %d, s = %d, log(s) = %.2f, delay = %ld", sector_quo, s, log(s), iodelay);
-			}	
+			double s = (double)(rand()%100000)/1000;	
+			iodelay += ((uint64_t)(676*log(s)+880)*sector_quo);
 			delay_info.remain_sectors = sector_rem;
 			break;
 		default:
