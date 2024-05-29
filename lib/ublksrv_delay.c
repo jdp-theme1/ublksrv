@@ -211,7 +211,7 @@ void ublksrv_delay_us(uint64_t delay){
 
     //ublksrv_io_delay(ublk_op, iod->start_sector, iod->start_sector);  
 int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr){
-	// uint32_t s = 0;
+	uint32_t s = 0;
 	uint64_t iodelay = 0;
 	// uint32_t nr_sectors = iod->nr_sectors;
 	// uint32_t start_addr = iod->start_sector;
@@ -232,7 +232,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			break;
 		case UBLK_IO_OP_WRITE: 
 			iodelay += delay_info.base_lat;
-			double s = (double)(rand()%100000)/1000;	
+			s = rand()%100;	
 			iodelay += ((uint64_t)(676*log(s)+880)*sector_quo);
 			delay_info.remain_sectors = sector_rem;
 			break;
