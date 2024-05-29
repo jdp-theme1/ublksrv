@@ -249,7 +249,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 				for (int i; i<sector_quo; i++){
 					s = rand()%100;
 					iodelay += (uint64_t)(676*log(s)+880);
-					ublk_log("Jeff s = %d, log(s) = %f, iodelay = %ld", s, log(s), iodelay);
+					ublk_log("Jeff sector_quo = %d, s = %d, log(s) = %f, iodelay = %ld", sector_quo, s, log(s), iodelay);
 					// iodelay += (2242.3 * exp(0.0074*s));
 				}
 			}
