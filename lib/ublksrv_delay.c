@@ -175,7 +175,7 @@ void ublk_get_cpu_frequency() {
 	cpu_frequency = (end_ticks - start_ticks) / elapsed_time;
 	delay_info.CPU_FREQ = (uint64_t)cpu_frequency;
 	ublk_dbg(UBLK_DBG_IO_CMD, "Estimated CPU frequency: %ld\n", delay_info.CPU_FREQ);
-	// printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
+	printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
 	ublk_delay_init_tables();
 	//return 0;
 }
@@ -200,7 +200,7 @@ void ublksrv_delay_us(uint64_t delay){
 	// int curcpu = sched_getcpu();
 	// int endcpu = 0;
 	uint64_t start_ticks = rdtsc();
-	uint64_t end_ticks = start_ticks + delay * cpu_freq * 1e-6; //select tick by micro seconds
+	uint64_t end_ticks = start_ticks + (uint64_t)((float)(delay) * 1e-6 * cpu_freq); //select tick by micro seconds
 	uint64_t current_ticks = start_ticks;
 	while(current_ticks <= end_ticks) {
 		// ublk_dbg(UBLK_DBG_IO_CMD,"delaying, %ld", current_ticks);
@@ -209,7 +209,8 @@ void ublksrv_delay_us(uint64_t delay){
 		//if(curcpu != startcpu)
 		//	ublk_dbg(UBLK_DBG_IO_CMD, "CPU changed from %d to %d\n", startcpu, curcpu);
 	}
-	// ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
+	// ublk_log("Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
+	ublk_log("Counting Passed tick %ld, target delay = %ld, delay for %.2f us", current_ticks-start_ticks, delay, (double)((current_ticks-start_ticks))*1e6/delay_info.CPU_FREQ);
 	//endcpu =sched_getcpu();
 	//if(endcpu != startcpu)
 	//		ublk_dbg(UBLK_DBG_IO_CMD, "CPU changed from %d to %d\n", startcpu, endcpu);
@@ -218,7 +219,7 @@ void ublksrv_delay_us(uint64_t delay){
     //ublksrv_io_delay(ublk_op, iod->start_sector, iod->start_sector);  
 int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr){
 	uint32_t s = 0;
-	uint32_t iodelay = 0;
+	uint64_t iodelay = 0;
 	// uint32_t nr_sectors = iod->nr_sectors;
 	// uint32_t start_addr = iod->start_sector;
 	uint64_t totalblk = nr_sectors + delay_info.remain_sectors;
@@ -241,43 +242,23 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			else 					iodelay = delay_info.read_delay_table.base;
 			break;
 		case UBLK_IO_OP_WRITE: 
-			/*s = rand();
-			if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59;
-			else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49;
-			else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39;
-			else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29;
-			else 					iodelay = delay_info.write_delay_table.base;*/
 			if(sector_quo < 1){
 				iodelay += delay_info.cache_lat;
 			} else {
 				iodelay += delay_info.cache_lat;
 				for (int i; i<sector_quo; i++){
-					s = rand()%100000;
-					//double Z = gaussrand();
-					// iodelay += (342*Z+3398);
-					
-					if(sector_quo>=4){
-						iodelay += (67*1.3*log(s)+88);
-					} else{
-						iodelay += (67*log(s)+88);//(242*Z+200);
-					}
+					s = rand()%100;
+					iodelay += (uint64_t)(676*log(s)+880);
+					ublk_log("Jeff s = %d, log(s) = %f, iodelay = %ld", s, log(s), iodelay);
+					// iodelay += (2242.3 * exp(0.0074*s));
 				}
-				if(sector_quo>=4){
-					iodelay *= 1.3;
-				}
-				/*s = rand();
-				if(s%99999 == 0) 		iodelay = delay_info.write_delay_table.p59*sector_quo;
-				else if(s%9999 == 0) 	iodelay = delay_info.write_delay_table.p49*sector_quo;
-				else if(s%999 == 0) 	iodelay = delay_info.write_delay_table.p39*sector_quo;
-				else if(s%99 == 0) 		iodelay = delay_info.write_delay_table.p29*sector_quo;
-				else 					iodelay = delay_info.write_delay_table.base*sector_quo;*/
 			}
 			delay_info.remain_sectors = sector_rem;
 			break;
 		default:
 			break;
 	}
-	// ublk_log("end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
+	ublk_log("end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
 	return iodelay;
 }
 
