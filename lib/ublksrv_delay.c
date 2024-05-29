@@ -200,25 +200,13 @@ void ublksrv_delay_ns(uint64_t delay){
 
 void ublksrv_delay_us(uint64_t delay){
 	uint64_t cpu_freq = delay_info.CPU_FREQ;
-    // ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", cpu_freq);
-	// int startcpu = sched_getcpu();
-	// int curcpu = sched_getcpu();
-	// int endcpu = 0;
 	uint64_t start_ticks = rdtsc();
 	uint64_t end_ticks = start_ticks + (uint64_t)((float)(delay) * 1e-6 * cpu_freq); //select tick by micro seconds
 	uint64_t current_ticks = start_ticks;
 	while(current_ticks <= end_ticks) {
-		// ublk_dbg(UBLK_DBG_IO_CMD,"delaying, %ld", current_ticks);
 		current_ticks = rdtsc();
-		//curcpu = sched_getcpu();
-		//if(curcpu != startcpu)
-		//	ublk_dbg(UBLK_DBG_IO_CMD, "CPU changed from %d to %d\n", startcpu, curcpu);
 	}
 	// ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
-	// ublk_log("Counting Passed tick %ld, target delay = %ld, delay for %.2f us", current_ticks-start_ticks, delay, (double)((current_ticks-start_ticks))*1e6/delay_info.CPU_FREQ);
-	//endcpu =sched_getcpu();
-	//if(endcpu != startcpu)
-	//		ublk_dbg(UBLK_DBG_IO_CMD, "CPU changed from %d to %d\n", startcpu, endcpu);
 }
 
     //ublksrv_io_delay(ublk_op, iod->start_sector, iod->start_sector);  
