@@ -218,7 +218,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 	uint64_t totalblk = nr_sectors + delay_info.remain_sectors;
 	uint32_t sector_quo = totalblk / delay_info.size_of_superpage;
 	uint32_t sector_rem = totalblk % delay_info.size_of_superpage;
-	srand(time(NULL)); //Jeff add
+	// srand(time(NULL)); //Jeff add
 	// ublk_log("Start = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
 	switch (ublk_op) {
 		case UBLK_IO_OP_FLUSH:
