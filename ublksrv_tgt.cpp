@@ -2,9 +2,8 @@
 
 #include "config.h"
 #include "ublksrv_tgt.h"
-// extern "C"{
-#include "ublksrv_delay.h"
-// }
+#include "ublksrv_delay.h" // KCC Add for Delay
+
 /* per-task variable */
 static pthread_mutex_t jbuf_lock;
 static int jbuf_size = 0;
@@ -706,7 +705,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	const char *dump_buf;
 	int option_index = 0;
 	unsigned int debug_mask = 0;
-	int user_enable_delay = 0;
+	bool user_enable_delay = false;
 
 	data.queue_depth = DEF_QD;
 	data.nr_hw_queues = DEF_NR_HW_QUEUES;
@@ -746,7 +745,7 @@ static int cmd_dev_add(int argc, char *argv[])
 			user_recovery_reissue = strtol(optarg, NULL, 10);
 			break;
 		case 'k':
-			user_enable_delay = 1;
+			user_enable_delay = true; // KCC Added flag for Delay module enable
 		case 0:
 			if (!strcmp(longopts[option_index].name, "debug_mask"))
 				debug_mask = strtol(optarg, NULL, 16);
@@ -790,13 +789,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	data.flags |= tgt_type->ublk_flags;
 	data.ublksrv_flags |= tgt_type->ublksrv_flags;
 
-	/* KCC Add delay Start */
-	data.enable_delay = user_enable_delay;
-	if(data.enable_delay == 1){		
-		ublk_dbg(UBLK_DBG_DEV, "ublk delay enabled\n");
-		// printf("ublk delay enabled\n");
-	}
-	/* KCC Add delay End */
+	
 
 	//optind = 0;	/* so that tgt code can parse their arguments */
 	data.tgt_argc = argc;
@@ -818,7 +811,7 @@ static int cmd_dev_add(int argc, char *argv[])
 			ublksrv_ctrl_get_dev_info(dev);
 		data.dev_id = info->dev_id;
 	}
-	// printf("delay = %d", dev);
+	
 	ret = ublksrv_start_daemon(dev);
 	if (ret <= 0) {
 		fprintf(stderr, "start dev %d daemon failed, ret %d\n",
@@ -836,6 +829,11 @@ static int cmd_dev_add(int argc, char *argv[])
 		goto fail_stop_daemon;
 	}
 	ret = ublksrv_ctrl_get_info(dev);
+	//KCC add for delay << start
+	// if(user_enable_delay)
+	// 	ublk_get_cpu_frequency();
+		//ublksrv_delay_module_init(dev);	
+	//KCC add for delay << end
 	ublksrv_ctrl_dump(dev, dump_buf);
 	ublksrv_ctrl_deinit(dev);
 	

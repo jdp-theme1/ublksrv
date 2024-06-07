@@ -13,6 +13,7 @@
 
 #include "queue.h"
 #include "ublksrv_delay.h"
+
 #define KB (1024UL)
 #define MB (1024*1024UL)
 struct ublksrv_delay_read
@@ -184,7 +185,21 @@ void ublk_get_cpu_frequency() {
 	ublk_delay_init_tables();
 	//return 0;
 }
-
+/*
+int ublksrv_delay_module_init(struct ublksrv_ctrl_dev *dev) {
+	struct ublksrv_ctrl_dev_info *info = &dev->dev_info;
+	int i, ret;
+	struct ublk_params p;
+	ublk_dbg(UBLK_DBG_DEV, "Delay module enabled... Start to get CPU clock rate\n");
+	ublk_get_cpu_frequency();
+	printf("dev id %d: nr_hw_queues %d queue_depth %d block size %d dev_capacity %lld\n",
+		 info->dev_id,
+	                info->nr_hw_queues, info->queue_depth,
+	                1 << p.basic.logical_bs_shift, p.basic.dev_sectors);
+					
+	return 0;
+}
+*/
 void ublksrv_delay_ns(uint64_t delay){
 	uint64_t cpu_freq = delay_info.CPU_FREQ;
     ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", cpu_freq);
@@ -215,6 +230,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 	uint64_t iodelay = 0;
 	// uint32_t nr_sectors = iod->nr_sectors;
 	// uint32_t start_addr = iod->start_sector;
+	uint32_t cur_blksize = nr_sectors * delay_info.device_sector;
 	uint64_t totalblk = nr_sectors + delay_info.remain_sectors;
 	uint32_t sector_quo = totalblk / delay_info.size_of_superpage;
 	uint32_t sector_rem = totalblk % delay_info.size_of_superpage;
@@ -227,8 +243,18 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 		case UBLK_IO_OP_WRITE_ZEROES:
 		case UBLK_IO_OP_DISCARD:
 			break;
-		case UBLK_IO_OP_READ:
-			/* KCC Read to_be_define*/
+		case UBLK_IO_OP_READ:			
+			s = rand()%100;
+			if(cur_blksize <= 4*KB){
+				iodelay += (0.021*s+26291);
+			} else if (cur_blksize > 4*KB && cur_blksize <= delay_info.size_of_superpage){
+				iodelay += (0.0304*s+57067);
+			} else if (cur_blksize > delay_info.size_of_superpage){
+				iodelay += (0.1312*s+294624);
+				for (int i = 0; i<cur_blksize/delay_info.size_of_superpage; i++){
+					iodelay *= 1.5;
+				}
+			}
 			break;
 		case UBLK_IO_OP_WRITE: 
 			iodelay += delay_info.base_lat;

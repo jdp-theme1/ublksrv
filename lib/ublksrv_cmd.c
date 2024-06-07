@@ -275,14 +275,14 @@ static int __ublksrv_ctrl_add_dev(struct ublksrv_ctrl_dev *dev, unsigned cmd_op)
 		.addr = (__u64)&dev->dev_info,
 		.len = sizeof(struct ublksrv_ctrl_dev_info),
 	};
-	//int user_enable_delay = dev->latency_flag;
-	// ublk_log("start to create delay demand %d\n", dev->latency_flag);
+
 	//KCC add for delay << start
 	if(dev->latency_flag){
-		ublk_dbg(UBLK_DBG_DEV, "Start to get CPU clock rate\n");
+		ublk_dbg(UBLK_DBG_DEV, "Delay module enabled... Start to get CPU clock rate\n");
 		ublk_get_cpu_frequency();
 	}
 	//KCC add for delay << end
+
 	return __ublksrv_ctrl_cmd(dev, &data);
 }
 
