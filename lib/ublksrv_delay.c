@@ -24,6 +24,7 @@ struct ublksrv_delay_read
 	uint32_t p39;
 	uint32_t p49;
 	uint32_t p59;
+	uint32_t seq_chunk_size;
 };
 struct ublksrv_delay_write
 {
@@ -128,39 +129,16 @@ void ublk_delay_init_tables(){
 	printf("***---  %d\n", devinfo->max_io_buf_bytes);*/
 	delay_info.choas_index = 0;
 	delay_info.last_end_lba = 0;
-	delay_info.remain_sectors = 0;
 	delay_info.base_lat = 50;
+
 	delay_info.device_sector = 512;
-	delay_info.size_of_superpage=512*KB/512;
-
-	// Add read delay parameter
-	delay_info.read_delay_table.base	=	10;
-	delay_info.read_delay_table.p29		=	50;
-	delay_info.read_delay_table.p39		=	200;
-	delay_info.read_delay_table.p49		=	400;
-	delay_info.read_delay_table.p59		=	800;
-
-	// Add write delay parameter
-	delay_info.write_delay_table.base	=	50;
-	delay_info.write_delay_table.p29	=	500;
-	delay_info.write_delay_table.p39	=	1000;
-	delay_info.write_delay_table.p49	=	2000;
-	delay_info.write_delay_table.p59	=	4000;
-
-	// Add garbage collection delay parameter
-	delay_info.gc_delay_table.base	=	5;
-	delay_info.gc_delay_table.p29	=	5;
-	delay_info.gc_delay_table.p39	=	5;
-	delay_info.gc_delay_table.p49	=	5;
-	delay_info.gc_delay_table.p59	=	5;
-
-	// Add wear-leveling delay parameter
-	delay_info.wl_delay_table.base	=	5;
-	delay_info.wl_delay_table.p29	=	5;
-	delay_info.wl_delay_table.p39	=	5;
-	delay_info.wl_delay_table.p49	=	5;
-	delay_info.wl_delay_table.p59	=	5;
-
+	delay_info.size_of_superpage=512*KB/delay_info.device_sector;
+	/*Following parameters for Seq Read*/
+	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
+	
+	/* Following parameters for Write*/
+	delay_info.remain_sectors = 0;
+	
 }
 
 void ublk_get_cpu_frequency() {

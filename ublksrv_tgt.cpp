@@ -789,7 +789,7 @@ static int cmd_dev_add(int argc, char *argv[])
 	data.flags |= tgt_type->ublk_flags;
 	data.ublksrv_flags |= tgt_type->ublksrv_flags;
 
-	
+	data.enable_delay=user_enable_delay;
 
 	//optind = 0;	/* so that tgt code can parse their arguments */
 	data.tgt_argc = argc;
