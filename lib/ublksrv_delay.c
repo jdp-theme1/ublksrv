@@ -142,9 +142,9 @@ void XPG_S50_PRO_1TB(){
 	delay_info.base_slc_page_read_us = 80;
 	delay_info.base_ublk_lat_us = 3;
 	delay_info.base_ublk_slat_us = 4;
-	delay_info.base_low_page_us = 100;
-	delay_info.base_mid_page_us = 110;
-	delay_info.base_high_page_us = 150;
+	delay_info.base_low_page_us = 70;
+	delay_info.base_mid_page_us = 90;
+	delay_info.base_high_page_us = 130;
 	/*Following parameters for Seq Read*/
 	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
 	
