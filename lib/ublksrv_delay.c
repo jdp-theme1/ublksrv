@@ -71,6 +71,9 @@ struct ublksrv_delay
 	uint64_t base_slc_page_read_us;
 	uint64_t base_ublk_lat_us;
 	uint64_t base_ublk_slat_us;
+	uint64_t base_low_page_us;
+	uint64_t base_mid_page_us;
+	uint64_t base_high_page_us;
 	double choas_learning_rate;
 	double gc_prob;
 	struct ublksrv_delay_read read_delay_table;
@@ -139,7 +142,9 @@ void XPG_S50_PRO_1TB(){
 	delay_info.base_slc_page_read_us = 80;
 	delay_info.base_ublk_lat_us = 5;
 	delay_info.base_ublk_slat_us = 4;
-
+	delay_info.base_low_page_us = 100;
+	delay_info.base_mid_page_us = 110;
+	delay_info.base_high_page_us = 150;
 	/*Following parameters for Seq Read*/
 	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
 	
@@ -235,7 +240,11 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 		case UBLK_IO_OP_READ:		
 			if(cur_blksize < 4*KB){
 					//iodelay+=19;
-					if(start_addr%128==0)iodelay+=delay_info.base_slc_page_read_us;						
+					if(start_addr%128==0){
+						if(start_addr/128==0) iodelay+=delay_info.base_low_page_us;
+						if(start_addr/128==1) iodelay+=delay_info.base_mid_page_us;
+						if(start_addr/128==2) iodelay+=delay_info.base_high_page_us;
+					}
 			}
 			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us);
 			break;
