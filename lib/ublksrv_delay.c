@@ -238,8 +238,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 		case UBLK_IO_OP_DISCARD:
 			break;
 		case UBLK_IO_OP_READ:		
-			if(cur_blksize < 4*KB){
-					s = rand()%10000;	
+			if(cur_blksize < 4*KB){	
 					iodelay+=19;
 					if(start_addr%128==0){
 						int temp = ((start_addr/128)%24);
@@ -247,8 +246,17 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 						else if(temp>8 && temp<=16) iodelay+=delay_info.base_mid_page_us;
 						else iodelay+=delay_info.base_low_page_us;
 					}
+			} else if (cur_blksize >= 4*KB && cur_blksize < 8*KB){
+					iodelay+=20;
+					if(start_addr%64==0){
+						int temp = ((start_addr/64)%24);
+						if(temp<=8) iodelay+=delay_info.base_high_page_us;
+						else if(temp>8 && temp<=16) iodelay+=delay_info.base_mid_page_us;
+						else iodelay+=delay_info.base_low_page_us;
+					}
 			}
-			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us);
+
+			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
 			break;
 		case UBLK_IO_OP_WRITE: 
 			iodelay += delay_info.base_lat;
