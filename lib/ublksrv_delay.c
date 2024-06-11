@@ -241,9 +241,9 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			if(cur_blksize < 4*KB){
 					iodelay+=19;
 					if(start_addr%128==0){
-						if((start_addr/128)%8==0) iodelay+=delay_info.base_low_page_us;
+						if((start_addr/128)%8==0) iodelay+=delay_info.base_high_page_us;
 						else if((start_addr/128)%16==0) iodelay+=delay_info.base_mid_page_us;
-						else iodelay+=delay_info.base_high_page_us;
+						else iodelay+=delay_info.base_low_page_us;
 					}
 			}
 			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us);
