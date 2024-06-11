@@ -69,6 +69,8 @@ struct ublksrv_delay
 	// bitmap ro record used lba --> check bitmap --> if 0, set bit[LBA]=1 total_lba_cnt++.
 	uint64_t total_lba_cnt;
 	uint64_t base_slc_page_read_us;
+	uint64_t base_ublk_lat;
+	uint64_t base_ublk_slat;
 	double choas_learning_rate;
 	double gc_prob;
 	struct ublksrv_delay_read read_delay_table;
@@ -135,6 +137,8 @@ void XPG_S50_PRO_1TB(){
 	delay_info.size_of_superpage=512*KB/delay_info.device_sector;
 
 	delay_info.base_slc_page_read_us = 80;
+	delay_info.base_ublk_lat = 5;
+	delay_info.base_ublk_slat = 4;
 
 	/*Following parameters for Seq Read*/
 	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
@@ -230,9 +234,10 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			break;
 		case UBLK_IO_OP_READ:		
 			if(cur_blksize < 4*KB){
-					iodelay+=12;
+					iodelay+=19;
 					if(start_addr%128==0)iodelay+=delay_info.base_slc_page_read_us;						
 			}
+			iodelay -= (delay_info.base_ublk_lat + delay_info.base_ublk_slat);
 			break;
 		case UBLK_IO_OP_WRITE: 
 			iodelay += delay_info.base_lat;
