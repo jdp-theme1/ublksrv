@@ -140,7 +140,7 @@ void XPG_S50_PRO_1TB(){
 	delay_info.size_of_superpage=512*KB/delay_info.device_sector;
 
 	delay_info.base_slc_page_read_us = 80;
-	delay_info.base_ublk_lat_us = 5;
+	delay_info.base_ublk_lat_us = 3;
 	delay_info.base_ublk_slat_us = 4;
 	delay_info.base_low_page_us = 100;
 	delay_info.base_mid_page_us = 110;
@@ -239,7 +239,7 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			break;
 		case UBLK_IO_OP_READ:		
 			if(cur_blksize < 4*KB){
-					//iodelay+=19;
+					iodelay+=19;
 					if(start_addr%128==0){
 						if((start_addr/128)%8==0) iodelay+=delay_info.base_low_page_us;
 						else if((start_addr/128)%16==0) iodelay+=delay_info.base_mid_page_us;
