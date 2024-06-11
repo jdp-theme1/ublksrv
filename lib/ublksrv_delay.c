@@ -68,7 +68,7 @@ struct ublksrv_delay
 	uint64_t last_end_lba;
 	// bitmap ro record used lba --> check bitmap --> if 0, set bit[LBA]=1 total_lba_cnt++.
 	uint64_t total_lba_cnt;
-	
+	uint64_t base_slc_page_read_us;
 	double choas_learning_rate;
 	double gc_prob;
 	struct ublksrv_delay_read read_delay_table;
@@ -124,7 +124,7 @@ void set_cpu_affinity() {
 	}
 }
 
-void ublk_delay_init_tables(){
+void XPG_S50_PRO_1TB(){
 	/*struct ublksrv_ctrl_dev_info *devinfo = dev->dev_info;
 	printf("***---  %d\n", devinfo->max_io_buf_bytes);*/
 	delay_info.choas_index = 0;
@@ -133,12 +133,19 @@ void ublk_delay_init_tables(){
 
 	delay_info.device_sector = 512;
 	delay_info.size_of_superpage=512*KB/delay_info.device_sector;
+
+	delay_info.base_slc_page_read_us = 80;
+
 	/*Following parameters for Seq Read*/
 	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
 	
 	/* Following parameters for Write*/
 	delay_info.remain_sectors = 0;
 	
+}
+
+void ublk_delay_init_tables(){
+	XPG_S50_PRO_1TB();
 }
 
 void ublk_get_cpu_frequency() {
@@ -221,17 +228,10 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 		case UBLK_IO_OP_WRITE_ZEROES:
 		case UBLK_IO_OP_DISCARD:
 			break;
-		case UBLK_IO_OP_READ:			
-			s = rand()%100;
-			if(cur_blksize <= 4*KB){
-				iodelay += (0.021*s+26291);
-			} else if (cur_blksize > 4*KB && cur_blksize <= delay_info.size_of_superpage){
-				iodelay += (0.0304*s+57067);
-			} else if (cur_blksize > delay_info.size_of_superpage){
-				iodelay += (0.1312*s+294624);
-				for (int i = 0; i<cur_blksize/delay_info.size_of_superpage; i++){
-					iodelay *= 1.5;
-				}
+		case UBLK_IO_OP_READ:		
+			if(cur_blksize < 4*KB){
+					iodelay+=19;
+					if(start_addr%128==0)iodelay+=delay_info.base_slc_page_read_us;						
 			}
 			break;
 		case UBLK_IO_OP_WRITE: 
