@@ -69,8 +69,8 @@ struct ublksrv_delay
 	// bitmap ro record used lba --> check bitmap --> if 0, set bit[LBA]=1 total_lba_cnt++.
 	uint64_t total_lba_cnt;
 	uint64_t base_slc_page_read_us;
-	uint64_t base_ublk_lat;
-	uint64_t base_ublk_slat;
+	uint64_t base_ublk_lat_us;
+	uint64_t base_ublk_slat_us;
 	double choas_learning_rate;
 	double gc_prob;
 	struct ublksrv_delay_read read_delay_table;
@@ -137,8 +137,8 @@ void XPG_S50_PRO_1TB(){
 	delay_info.size_of_superpage=512*KB/delay_info.device_sector;
 
 	delay_info.base_slc_page_read_us = 80;
-	delay_info.base_ublk_lat = 5;
-	delay_info.base_ublk_slat = 4;
+	delay_info.base_ublk_lat_us = 5;
+	delay_info.base_ublk_slat_us = 4;
 
 	/*Following parameters for Seq Read*/
 	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
@@ -216,7 +216,7 @@ void ublksrv_delay_us(uint64_t delay){
     //ublksrv_io_delay(ublk_op, iod->start_sector, iod->start_sector);  
 int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr){
 	uint32_t s = 0;
-	uint64_t iodelay = 0;
+	int iodelay = 0;
 	// uint32_t nr_sectors = iod->nr_sectors;
 	// uint32_t start_addr = iod->start_sector;
 	uint32_t cur_blksize = nr_sectors * delay_info.device_sector;
@@ -234,10 +234,10 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			break;
 		case UBLK_IO_OP_READ:		
 			if(cur_blksize < 4*KB){
-					iodelay+=19;
+					//iodelay+=19;
 					if(start_addr%128==0)iodelay+=delay_info.base_slc_page_read_us;						
 			}
-			iodelay -= (delay_info.base_ublk_lat + delay_info.base_ublk_slat);
+			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us);
 			break;
 		case UBLK_IO_OP_WRITE: 
 			iodelay += delay_info.base_lat;
@@ -248,7 +248,12 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 		default:
 			break;
 	}
-	// ublk_log("end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
+	if (iodelay<0){
+		iodelay=0;
+		ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
+	}
+		
+	ublk_dbg(UBLK_DBG_IO_CMD,"end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
 	return iodelay;
 }
 
