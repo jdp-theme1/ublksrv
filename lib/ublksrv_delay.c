@@ -240,11 +240,11 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 		case UBLK_IO_OP_READ:		
 			if(cur_blksize < 4*KB){
 					s = rand()%10000;	
-					//iodelay+=19;
-					iodelay += (1.5*log(s)+4.5);
+					iodelay+=19;
 					if(start_addr%128==0){
-						if((start_addr/128)%8==0) iodelay+=delay_info.base_high_page_us;
-						else if((start_addr/128)%16==0) iodelay+=delay_info.base_mid_page_us;
+						int temp = ((start_addr/128)%24);
+						if(temp<=8) iodelay+=delay_info.base_high_page_us;
+						else if(temp>8 && temp<=16) iodelay+=delay_info.base_mid_page_us;
 						else iodelay+=delay_info.base_low_page_us;
 					}
 			}
