@@ -239,7 +239,9 @@ int ublksrv_io_delay(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr)
 			break;
 		case UBLK_IO_OP_READ:		
 			if(cur_blksize < 4*KB){
-					iodelay+=19;
+					s = rand()%10000;	
+					//iodelay+=19;
+					iodelay += (1.5*log(s)+4.5);
 					if(start_addr%128==0){
 						if((start_addr/128)%8==0) iodelay+=delay_info.base_high_page_us;
 						else if((start_addr/128)%16==0) iodelay+=delay_info.base_mid_page_us;
