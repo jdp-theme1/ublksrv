@@ -75,6 +75,8 @@ struct ublksrv_delay
 	uint8_t rate_read_low_page;
 	uint8_t rate_read_mid_page;
 	uint8_t rate_read_high_page;
+	uint8_t rate_read_channel_contention;
+	float	lat_read_channel_contention;
 	uint64_t nr_size_for_update_cache;
 	uint64_t nr_cur_read_size;
 	uint64_t last_read_start_lba;
@@ -83,6 +85,7 @@ struct ublksrv_delay
 	uint64_t lat_read_low_page_us;
 	uint64_t lat_read_mid_page_us;
 	uint64_t lat_read_high_page_us;
+	uint64_t size_single_mapping_table;
 	/* Write */
 	double choas_learning_rate;
 	double gc_prob;
@@ -153,6 +156,7 @@ void XPG_S50_PRO_1TB(){
 	delay_info.lat_sys_page_read_us = 80;
 	delay_info.base_ublk_lat_us = 3;
 	delay_info.base_ublk_slat_us = 4;
+	delay_info.size_single_mapping_table=32*MB/delay_info.device_sector;
 
 	/*Following parameters for Read*/
 	delay_info.rate_read_low_page=20;
@@ -164,11 +168,13 @@ void XPG_S50_PRO_1TB(){
 	delay_info.lat_read_high_page_us = 130;
 
 	delay_info.nr_size_for_update_cache = 64*1024;
-
+	
 	delay_info.rate_read_page_fault = 50;
 
 	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
 	
+	delay_info.rate_read_channel_contention = 10;
+	delay_info.lat_read_channel_contention = 1.6;
 	/* Following parameters for Write*/
 	delay_info.remain_sectors = 0;
 	
@@ -241,7 +247,7 @@ void ublksrv_delay_us(uint64_t delay){
 
 int ublksrv_lat_pages_read(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize){
 	int iodelay = 0;
-	//ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.last_read_start_lba=%ld", start_addr, nr_sectors, delay_info.last_read_start_lba);
+	ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.last_read_start_lba=%ld", start_addr, nr_sectors, delay_info.last_read_start_lba);
 	if(nr_sectors>=delay_info.size_of_superpage){ 		//Full channel utilization
 		iodelay+=280;
 	} else if(cur_blksize>32*KB && cur_blksize<=64*KB){	//32~64K latency
@@ -262,7 +268,7 @@ int ublksrv_lat_pages_read(uint32_t nr_sectors, uint64_t start_addr, uint64_t cu
 			delay_info.nr_cur_read_size+=cur_blksize;
 	if(delay_info.nr_cur_read_size>delay_info.nr_size_for_update_cache){
 		uint32_t s = rand()%100;
-		//ublk_dbg(UBLK_DBG_IO_CMD,"ublk: s=%d, Read flash",s);
+		ublk_dbg(UBLK_DBG_IO_CMD,"ublk: s=%d, Read flash",s);
 		if(s>=delay_info.rate_read_high_page){
 			iodelay+=delay_info.lat_read_high_page_us;
 		} else if (s>=delay_info.rate_read_mid_page && s<delay_info.rate_read_high_page){
@@ -270,10 +276,9 @@ int ublksrv_lat_pages_read(uint32_t nr_sectors, uint64_t start_addr, uint64_t cu
 		} else {
 			iodelay+=delay_info.lat_read_mid_page_us;
 		}
-		
-		delay_info.nr_cur_read_size -= delay_info.nr_size_for_update_cache;
+		delay_info.nr_cur_read_size -= delay_info.nr_size_for_update_cache; /*Reset record value*/
 	}
-	//ublk_dbg(UBLK_DBG_IO_CMD,"ublk ddlay: iodelay = %d, Delay delay_info.nr_cur_read_size=%ld", iodelay,delay_info.nr_cur_read_size);
+	ublk_dbg(UBLK_DBG_IO_CMD,"ublk ddlay: iodelay = %d, Delay delay_info.nr_cur_read_size=%ld", iodelay,delay_info.nr_cur_read_size);
 	return iodelay;
 }
 
@@ -295,15 +300,18 @@ int ublksrv_io_delay_cal(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_a
 			break;
 		case UBLK_IO_OP_READ:		
 			//ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start\n");
-			if(start_addr == delay_info.last_read_end_lba || start_addr==delay_info.last_read_start_lba){ //Sequential Read
+			if(start_addr == delay_info.last_read_end_lba || 
+				start_addr == delay_info.last_read_start_lba){ //Sequential Read
 				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start for sequential read\n");
 				iodelay += ublksrv_lat_pages_read(nr_sectors, start_addr, cur_blksize); // Add measured latency by page size
 			} else { //Random Read
 				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start for random read\n");
-				s = 100-rand()%100; // rate of page fault
+				s = 100-rand()%100; 
 				iodelay += ublksrv_lat_pages_read(nr_sectors, start_addr, cur_blksize);
-				if(s > delay_info.rate_read_page_fault){
+				if(s >= delay_info.rate_read_page_fault){	/* page is not in cache */
 					iodelay += (delay_info.lat_sys_page_read_us);
+				} else if(s >= delay_info.rate_read_channel_contention){ /* Channel contention proability */
+					iodelay *= delay_info.lat_read_channel_contention;
 				}
 			}
 			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
@@ -315,13 +323,14 @@ int ublksrv_io_delay_cal(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_a
 			/* Restrict IOPS for ensure the latency boundary*/
 			if (iodelay<10){
 				iodelay=10; /* Restrict IOPS, should add latency accorrding to block size*/
-				//ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
+				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
 			}
 			break;
 		case UBLK_IO_OP_WRITE: 
-			iodelay += delay_info.base_lat;
+			/*iodelay += delay_info.base_lat;
 			s = rand()%100;	
-			iodelay += ((uint64_t)(676*log(s)+880)*sector_quo);
+			iodelay += ((uint64_t)(676*log(s)+880)*sector_quo);*/
+
 			delay_info.remain_sectors = sector_rem;
 			break;
 		default:
