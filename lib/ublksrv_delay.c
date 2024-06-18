@@ -324,7 +324,7 @@ int ublksrv_lat_pages_write(uint32_t nr_sectors, uint64_t start_addr, uint64_t c
 
 	/* BKOPS --> Wear-leveling */
 
-	/* update pending write blocks*/
+	/* Update pending write blocks*/
 	delay_info.wr_remain_sectors = sector_rem;
 	ublk_dbg(UBLK_DBG_IO_CMD,"ublk wdelay: iodelay = %d, start_addr=%ld, nr_sectors=%d sector_quo=%d, delay_info.wr_remain_sectors=%d"
 								, iodelay, start_addr, nr_sectors, sector_quo, delay_info.wr_remain_sectors);
@@ -376,7 +376,11 @@ int ublksrv_io_delay_cal(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_a
 			s = rand()%100;	
 			iodelay += ((uint64_t)(676*log(s)+880)*sector_quo);*/
 			iodelay+=ublksrv_lat_pages_write(nr_sectors, start_addr, cur_blksize, delay_info.wr_remain_sectors);
-			
+			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
+			if (iodelay<10){
+				iodelay=10; /* Restrict IOPS, should add latency accorrding to block size*/
+				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
+			}
 			break;
 		default:
 			break;
