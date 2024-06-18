@@ -88,7 +88,9 @@ struct ublksrv_delay
 	uint64_t size_single_mapping_table;
 	/* Write */
 	uint32_t wr_remain_sectors;
+	uint32_t wr_remain_sectors_small;
 	uint64_t wr_cache_flush_window_sectors;
+	
 	uint32_t lat_write_pages_us;
 	double choas_learning_rate;
 	double gc_prob;
@@ -286,7 +288,7 @@ int ublksrv_lat_pages_read(uint32_t nr_sectors, uint64_t start_addr, uint64_t cu
 int ublksrv_lat_pages_write(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize, uint64_t wr_remain_sectors){
 	int iodelay = 0;
 	uint64_t totalsector = delay_info.wr_remain_sectors + nr_sectors;
-	uint64_t smallsector = totalsector / (2*MB/delay_info.device_sector);
+	uint64_t smallsector = totalsector % 4096;
 	uint32_t sector_quo = totalsector / delay_info.wr_cache_flush_window_sectors;
 	uint32_t sector_rem = totalsector % delay_info.wr_cache_flush_window_sectors;
 	ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.sector_of_superpage= %d, sector_quo=%d", start_addr, nr_sectors, delay_info.sector_of_superpage, sector_quo);
@@ -313,12 +315,13 @@ int ublksrv_lat_pages_write(uint32_t nr_sectors, uint64_t start_addr, uint64_t c
 		iodelay+=10;
 	}
 	/* Cache Flushing latency*/
-	if(iodelay<50 && smallsector>=1){
-		ublk_log("wdelay: Small flushing");
-		iodelay+=50;
-	} else if (sector_quo>=1 && iodelay<100){
+	if(iodelay<50 && smallsector==0){
+		ublk_log("wdelay: Small flushing, start_addr=%ld, smallsector=%ld", start_addr, smallsector);
+		iodelay+=(30);
+	} 
+	if (sector_quo>=1 && iodelay<100){
 		ublk_log("wdelay: Add large flushing");
-	 	iodelay=100;
+	 	iodelay+=(80-iodelay+100);
 	}
 	/* BKOPS --> GC */
 
