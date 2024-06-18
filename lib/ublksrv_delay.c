@@ -88,7 +88,7 @@ struct ublksrv_delay
 	uint64_t size_single_mapping_table;
 	/* Write */
 	uint32_t wr_remain_sectors;
-	uint64_t wr_cache_sectors;
+	uint64_t wr_cache_flush_window_sectors;
 	uint32_t lat_write_pages_us;
 	double choas_learning_rate;
 	double gc_prob;
@@ -178,7 +178,7 @@ void XPG_S50_PRO_1TB(){
 	delay_info.lat_read_channel_contention = 1.6;
 	/* Following parameters for Write*/
 	delay_info.wr_remain_sectors = 0;
-	delay_info.wr_cache_sectors = 64*1024/delay_info.device_sector;	
+	delay_info.wr_cache_flush_window_sectors = 32*MB/delay_info.device_sector;	
 	delay_info.lat_write_pages_us = 100;
 }
 
@@ -286,11 +286,11 @@ int ublksrv_lat_pages_read(uint32_t nr_sectors, uint64_t start_addr, uint64_t cu
 int ublksrv_lat_pages_write(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize, uint64_t wr_remain_sectors){
 	int iodelay = 0;
 	uint64_t totalsector = delay_info.wr_remain_sectors + nr_sectors;
-	uint32_t sector_quo = totalsector / delay_info.sector_of_superpage;
-	uint32_t sector_rem = totalsector % delay_info.sector_of_superpage;
+	uint64_t smallsector = totalsector / (2*MB/delay_info.device_sector);
+	uint32_t sector_quo = totalsector / delay_info.wr_cache_flush_window_sectors;
+	uint32_t sector_rem = totalsector % delay_info.wr_cache_flush_window_sectors;
 	ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.sector_of_superpage= %d, sector_quo=%d", start_addr, nr_sectors, delay_info.sector_of_superpage, sector_quo);
 	/* Base latency injection */
-	//if(wr_remain_sectors+nr_sectors<delay_info.wr_cache_sectors){
 	if(nr_sectors>delay_info.sector_of_superpage){ 		//Full channel utilization
 		iodelay+=(181*(nr_sectors/delay_info.sector_of_superpage));
 	} else if(cur_blksize>256*KB && nr_sectors<=delay_info.sector_of_superpage){	//256~512K latency
@@ -312,13 +312,13 @@ int ublksrv_lat_pages_write(uint32_t nr_sectors, uint64_t start_addr, uint64_t c
 	} else {						//512B latency
 		iodelay+=10;
 	}
-	//} else {
-	//	iodelay += delay_info.lat_write_pages_us;
-	//}
-	/* Real programming latency injection */
-	if(sector_quo>=1 && iodelay<100){
-		ublk_log("wdelay add program latency");
-		iodelay+=100;
+	/* Cache Flushing latency*/
+	if(iodelay<50 && smallsector>=1){
+		ublk_log("wdelay: Small flushing");
+		iodelay+=50;
+	} else if (sector_quo>=1 && iodelay<100){
+		ublk_log("wdelay: Add large flushing");
+	 	iodelay=100;
 	}
 	/* BKOPS --> GC */
 
