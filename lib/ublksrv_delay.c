@@ -461,68 +461,103 @@ int ublksrv_lat_pages_read_prob(uint32_t nr_sectors, uint64_t start_addr, uint64
 	switch (cur_blksize){
 		case 4096:
 			iodelay+=lat_R_4096[s];
+			break;
 		case 8192:
 			iodelay+=lat_R_8192[s];
+			break;
 		case 12288:
 			iodelay+=lat_R_12288[s];
+			break;
 		case 16384:
 			iodelay+=lat_R_16384[s];
+			break;
 		case 20480:
 			iodelay+=lat_R_20480[s];
+			break;
 		case 24576:
 			iodelay+=lat_R_24576[s];
+			break;
 		case 28672:
 			iodelay+=lat_R_28672[s];
+			break;
 		case 32768:
 			iodelay+=lat_R_32768[s];
+			break;
 		case 36864:
 			iodelay+=lat_R_36864[s];
+			break;
 		case 40960:
 			iodelay+=lat_R_40960[s];
+			break;
 		case 45056:
 			iodelay+=lat_R_45056[s];
+			break;
 		case 49152:
 			iodelay+=lat_R_49152[s];
+			break;
 		case 53248:
 			iodelay+=lat_R_53248[s];
+			break;
 		case 57344:
 			iodelay+=lat_R_57344[s];
+			break;
 		case 61440:
 			iodelay+=lat_R_61440[s];
+			break;
 		case 65536:
 			iodelay+=lat_R_65536[s];
+			break;
 		case 69632:
 			iodelay+=lat_R_69632[s];
+			break;
 		case 73728:
 			iodelay+=lat_R_73728[s];
+			break;
 		case 77824:
 			iodelay+=lat_R_77824[s];
+			break;
 		case 81920:
 			iodelay+=lat_R_81920[s];
+			break;
 		case 86016:
 			iodelay+=lat_R_86016[s];
+			break;
 		case 90112:
 			iodelay+=lat_R_90112[s];
+			break;
 		case 94208:
 			iodelay+=lat_R_94208[s];
+			break;
 		case 98304:
 			iodelay+=lat_R_98304[s];
+			break;
 		case 102400:
 			iodelay+=lat_R_102400[s];
+			break;
 		case 106496:
 			iodelay+=lat_R_106496[s];
+			break;
 		case 110592:
 			iodelay+=lat_R_110592[s];
+			break;
 		case 114688:
 			iodelay+=lat_R_114688[s];
+			break;
 		case 118784:
 			iodelay+=lat_R_118784[s];
+			break;
 		case 122880:
 			iodelay+=lat_R_122880[s];
+			break;
 		case 126976:
 			iodelay+=lat_R_126976[s];
+			break;
 		case 131072:
 			iodelay+=lat_R_131072[s];
+			break;
+		default:
+			iodelay+=10;
+			break;
 	}
 
 	/* End */
