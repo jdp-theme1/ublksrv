@@ -597,13 +597,19 @@ int ublksrv_io_delay_prob(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_
 }
 int ublksrv_delay_module(const struct ublksrv_io_desc *iod){
 	uint32_t delaytime = 0;
+	clock_t start,end;
+	double cpu_time_used;
 	if(delay_info.CPU_FREQ==0) return -1;
 	ublk_dbg(UBLK_DBG_IO_CMD, "start_sector %lld, nr_sectors: %d, op_flags: %d", iod->start_sector, iod->nr_sectors, iod->op_flags);	
 	uint32_t ublk_op = ublksrv_get_op(iod);
 	/* Start Cal latency*/
+	start = clock();
 	// delaytime = ublksrv_io_delay_cal(ublk_op, iod->nr_sectors, iod->start_sector);
 	delaytime = ublksrv_io_delay_prob(ublk_op, iod->nr_sectors, iod->start_sector);
 	ublksrv_delay_us(delaytime);
+	end = clock();
+	cpu_time_used = ((double) (end-start)) / CLOCKS_PER_SEC;
+	ublk_dbg(UBLK_DBG_IO_CMD, "Target delay %d, Real delay %f", delaytime, cpu_time_used);	
 	return 0;
 }
 
