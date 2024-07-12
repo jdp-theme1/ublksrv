@@ -464,6 +464,7 @@ int ublksrv_lat_pages_read_prob(uint32_t nr_sectors, uint64_t start_addr, uint64
 
 	/* Start */
 	s+=1;
+	s=s%102;
 	//uint32_t s = rand()%101;
 	switch (cur_blksize){
 		case 4096:
