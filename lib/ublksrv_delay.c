@@ -469,16 +469,22 @@ int ublksrv_lat_pages_read_prob(uint32_t nr_sectors, uint64_t start_addr, uint64
 	switch (cur_blksize){
 		case 4096:
 			iodelay+=lat_R_4096[s];
+			break;
 		case 16384:
 			iodelay+=lat_R_16384[s];
+			break;
 		case 32768:
 			iodelay+=lat_R_32768[s];
+			break;
 		case 65536:
 			iodelay+=lat_R_65536[s];
+			break;
 		case 114688:
 			iodelay+=lat_R_114688[s];
+			break;
 		case 131072:
 			iodelay+=lat_R_131072[s];
+			break;
 	}
 	/* PM 1733 */
 	// switch (cur_blksize){
