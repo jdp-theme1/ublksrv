@@ -199,6 +199,7 @@ int ublksrv_complete_io(const struct ublksrv_queue *tq, unsigned tag, int res)
 	// ublk_dbg(UBLK_DBG_IO_CMD, "q->dev->delay_enable %d\n", q->dev->delay_enable);
 	const struct ublk_io_data *data = &io->data; 
 	const struct ublksrv_io_desc *iod = data->iod; 
+	ublk_log("tq id = %d,  depth = %d", tq->q_id, tq->q_depth);
 	ublksrv_delay_module(iod);
 	// KCC Add Latency << End
 	
