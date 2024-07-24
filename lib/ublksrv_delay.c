@@ -16,44 +16,6 @@
 
 #define KB (1024UL)
 #define MB (1024*1024UL)
-struct ublksrv_delay_read
-{
-	/* data */
-	uint32_t base;
-	uint32_t p29;
-	uint32_t p39;
-	uint32_t p49;
-	uint32_t p59;
-	uint32_t seq_chunk_size;
-};
-struct ublksrv_delay_write
-{
-	/* data */
-	uint32_t base;
-	uint32_t p29;
-	uint32_t p39;
-	uint32_t p49;
-	uint32_t p59;
-};
-struct ublksrv_delay_gc
-{
-	/* data */
-	uint32_t base;
-	uint32_t p29;
-	uint32_t p39;
-	uint32_t p49;
-	uint32_t p59;
-};
-struct ublksrv_delay_wl
-{
-	/* data */
-	uint32_t base;
-	uint32_t p29;
-	uint32_t p39;
-	uint32_t p49;
-	uint32_t p59;
-};
-
 
 struct ublksrv_delay
 {
@@ -99,10 +61,6 @@ struct ublksrv_delay
 	
 	double choas_learning_rate;
 	double gc_prob;
-	struct ublksrv_delay_read read_delay_table;
-	struct ublksrv_delay_write write_delay_table;
-	struct ublksrv_delay_gc gc_delay_table;
-	struct ublksrv_delay_wl wl_delay_table;
 };
 
 static struct ublksrv_delay delay_info;
