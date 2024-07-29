@@ -15,6 +15,7 @@
 
 struct ublksrv_delay
 {
+    bool delay_enable;
 	/* device information*/
 	uint16_t choas_index;
 	uint16_t base_lat;

@@ -15,7 +15,9 @@
 #define KB (1024UL)
 #define MB (1024*1024UL)
 
-struct ublksrv_delay delay_info;
+struct ublksrv_delay delay_info={
+	.delay_enable = false,
+};
 
 uint64_t ublk_get_current_tick() {
     uint32_t lo, hi;
@@ -80,7 +82,8 @@ void ublk_get_cpu_frequency() {
 	cpu_frequency = (end_ticks - start_ticks) / elapsed_time;
 	delay_info.CPU_FREQ = (uint64_t)cpu_frequency;
 	ublk_dbg(UBLK_DBG_IO_CMD, "Estimated CPU frequency: %ld\n", delay_info.CPU_FREQ);
-	// printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency);
+	printf("Estimated CPU frequency: %.2f Hz\n", cpu_frequency/1000000000);
+	delay_info.delay_enable = true;
 	ublk_delay_init_tables();
 	//return 0;
 }
@@ -120,6 +123,7 @@ void ublksrv_delay_us(uint64_t delay){
 	while(current_ticks <= end_ticks) {
 		current_ticks = ublk_get_current_tick();
 	}
+	// usleep(delay);
 	// ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
 }
 
@@ -422,6 +426,7 @@ int ublksrv_delay_module(const struct ublksrv_io_desc *iod){
 	// delaytime = ublksrv_io_delay_cal(ublk_op, iod->nr_sectors, iod->start_sector);
 	delaytime = ublksrv_io_delay_prob(ublk_op, iod->nr_sectors, iod->start_sector);
 	ublksrv_delay_us(delaytime);
+	// usleep(delaytime);
 	end = clock();
 	cpu_time_used = ((double) (end-start)) / CLOCKS_PER_SEC;
 	ublk_dbg(UBLK_DBG_IO_CMD, "Target delay %d, Real delay %f", delaytime, cpu_time_used);	
