@@ -6,82 +6,18 @@
 #include <stdio.h>
 #include <bits/types.h>
 #include <time.h>
-#include <math.h> // KCC for practice Gauss Dist
-#include "ublksrv.h"
-// #include "ublksrv_aio.h"
 #include <sched.h>
 
+#include "ublksrv.h"
 #include "queue.h"
 #include "ublksrv_delay.h"
 
 #define KB (1024UL)
 #define MB (1024*1024UL)
 
-struct ublksrv_delay
-{
-	/* device information*/
-	uint16_t choas_index;
-	uint16_t base_lat;
-	uint32_t sector_of_superpage;
-	uint32_t device_sector;
-	
-	/* data */
-	uint64_t CPU_FREQ;
-	// bitmap ro record used lba --> check bitmap --> if 0, set bit[LBA]=1 total_lba_cnt++.
-	uint64_t total_lba_cnt;
-	
-	uint64_t base_ublk_lat_us;
-	uint64_t base_ublk_slat_us;
-	/* Read */
-	uint8_t rate_read_page_fault;
-	uint8_t rate_read_low_page;
-	uint8_t rate_read_mid_page;
-	uint8_t rate_read_high_page;
-	uint8_t rate_read_channel_contention;
-	float	lat_read_channel_contention;
-	uint32_t rd_cache_sector;
-	uint64_t nr_cur_read_size;
-	uint64_t last_read_start_lba;
-	uint64_t last_read_end_lba;
-	uint64_t lat_sys_page_read_us;
-	uint64_t lat_read_low_page_us;
-	uint64_t lat_read_mid_page_us;
-	uint64_t lat_read_high_page_us;
-	uint64_t size_single_mapping_table;
-	/* Write */
-	uint32_t wr_remain_sectors;
-	uint32_t wr_remain_sectors_small;
-	uint64_t wr_cache_flush_window_sectors;
-	
-	uint32_t lat_write_pages_us;
-	/* GC */
-	uint8_t GC_cnt;
-	uint32_t size_GC_reclaim;
-	uint64_t total_write_size;
-	
-	double choas_learning_rate;
-	double gc_prob;
-};
+struct ublksrv_delay delay_info;
 
-static struct ublksrv_delay delay_info;
-
-double gaussrand() {
-	static double U, V;
-	static int phase = 0;
-	double Z;
-	double PI = 3.14159265358979323846;
-	if(phase == 0){
-		U = rand() / (RAND_MAX + 1.0);
-		V = rand() / (RAND_MAX + 1.0);
-		Z = sqrt(-2.0 * log(U))* sin(2.0 * PI * V);
-	}
-	else
-		Z = sqrt(-2.0 * log(U)) * cos(2.0 * PI * V);
-	phase = 1 - phase;
-	return Z;
-}
-
-uint64_t rdtsc() {
+uint64_t ublk_get_current_tick() {
     uint32_t lo, hi;
     __asm__ __volatile__ (
         "rdtsc"
@@ -114,46 +50,16 @@ void XPG_S50_PRO_1TB(){
 	/*struct ublksrv_ctrl_dev_info *devinfo = dev->dev_info;
 	printf("***---  %d\n", devinfo->max_io_buf_bytes);*/
 	delay_info.choas_index = 0;
-	delay_info.last_read_start_lba = 0;
-	delay_info.last_read_end_lba = 0;
 	delay_info.base_lat = 50;
-
 	delay_info.device_sector = 512;
-	delay_info.sector_of_superpage=512*KB/delay_info.device_sector;
 
-	delay_info.lat_sys_page_read_us = 80;
-	delay_info.base_ublk_lat_us = 3;
-	delay_info.base_ublk_slat_us = 4;
-	delay_info.size_single_mapping_table=32*MB/delay_info.device_sector;
-
-	/*Following parameters for Read*/
-	delay_info.rate_read_low_page=20;
-	delay_info.rate_read_mid_page=30;
-	delay_info.rate_read_high_page=100-delay_info.rate_read_low_page-delay_info.rate_read_mid_page;
-
-	delay_info.lat_read_low_page_us = 70;
-	delay_info.lat_read_mid_page_us = 90;
-	delay_info.lat_read_high_page_us = 130;	
-	
-	delay_info.rate_read_page_fault = 50;
-	delay_info.rd_cache_sector=64*1024/delay_info.device_sector;
-	delay_info.read_delay_table.seq_chunk_size = 64*KB/delay_info.device_sector;
-	
-	delay_info.rate_read_channel_contention = 10;
-	delay_info.lat_read_channel_contention = 1.6;
-	/* Following parameters for Write*/
-	delay_info.wr_remain_sectors = 0;
-	delay_info.wr_cache_flush_window_sectors = 32*MB/delay_info.device_sector;	
-	delay_info.lat_write_pages_us = 100;
-
-	/* GC reclaim information */
-	delay_info.GC_cnt=0;
-	delay_info.size_GC_reclaim=719104;
-	delay_info.total_write_size=0;
 }
 
 void ublk_delay_init_tables(){
-	XPG_S50_PRO_1TB();
+	// XPG_S50_PRO_1TB();
+	delay_info.choas_index = 0;
+	delay_info.base_lat = 50;
+	delay_info.device_sector = 512;
 }
 
 void ublk_get_cpu_frequency() {
@@ -164,10 +70,10 @@ void ublk_get_cpu_frequency() {
 //	set_cpu_affinity();
 
 	get_time(&start);
-	start_ticks = rdtsc();
+	start_ticks = ublk_get_current_tick();
 	sleep(1);
 	get_time(&end);
-	end_ticks = rdtsc();
+	end_ticks = ublk_get_current_tick();
 
 	elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
@@ -196,185 +102,185 @@ int ublksrv_delay_module_init(struct ublksrv_ctrl_dev *dev) {
 void ublksrv_delay_ns(uint64_t delay){
 	uint64_t cpu_freq = delay_info.CPU_FREQ;
     ublk_dbg(UBLK_DBG_IO_CMD, "CPU frequency: %ld\n", cpu_freq);
-	uint64_t start_ticks = rdtsc();
+	uint64_t start_ticks = ublk_get_current_tick();
 	uint64_t end_ticks = start_ticks + delay * cpu_freq * 1e-9; //select tick by nano seconds
-	uint64_t current_ticks = rdtsc();
+	uint64_t current_ticks = start_ticks;
 	while(current_ticks <= end_ticks) {
 		ublk_log("delaying, %ld", current_ticks);
-		current_ticks = rdtsc();
+		current_ticks = ublk_get_current_tick();
 	}
 	ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
 }
 
 void ublksrv_delay_us(uint64_t delay){
 	uint64_t cpu_freq = delay_info.CPU_FREQ;
-	uint64_t start_ticks = rdtsc();
+	uint64_t start_ticks = ublk_get_current_tick();
 	uint64_t end_ticks = start_ticks + (uint64_t)((float)(delay) * 1e-6 * cpu_freq); //select tick by micro seconds
 	uint64_t current_ticks = start_ticks;
 	while(current_ticks <= end_ticks) {
-		current_ticks = rdtsc();
+		current_ticks = ublk_get_current_tick();
 	}
 	// ublk_dbg(UBLK_DBG_IO_CMD, "Start tick %ld, end tick: %ld, cur_tick: %ld", start_ticks, end_ticks, current_ticks);
 }
 
-int ublksrv_lat_pages_read(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize){
-	int iodelay = 0;
-	ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.last_read_start_lba=%ld", start_addr, nr_sectors, delay_info.last_read_start_lba);
-	if(nr_sectors>=delay_info.sector_of_superpage){ 		//Full channel utilization
-		iodelay+=280;
-	} else if(cur_blksize>32*KB && cur_blksize<=64*KB){	//32~64K latency
-		iodelay+=35;
-	} else if(cur_blksize>16*KB && cur_blksize<=32*KB){	//16~32K latency
-		iodelay+=40;
-	} else if(cur_blksize>8*KB && cur_blksize<=16*KB){	//8~16K latency
-		iodelay+=30;
-	} else if(cur_blksize>4*KB && cur_blksize<=8*KB){	//4~8K latency
-		iodelay+=25;
-	} else if(cur_blksize>512 && cur_blksize<=4*KB){	//512B~4K latency
-		iodelay+=17;
-	} else if(cur_blksize==512){						//512B latency
-		iodelay+=19;
-	}
+// int ublksrv_lat_pages_read(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize){
+// 	int iodelay = 0;
+// 	ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.last_read_start_lba=%ld", start_addr, nr_sectors, delay_info.last_read_start_lba);
+// 	if(nr_sectors>=delay_info.sector_of_superpage){ 		//Full channel utilization
+// 		iodelay+=280;
+// 	} else if(cur_blksize>32*KB && cur_blksize<=64*KB){	//32~64K latency
+// 		iodelay+=35;
+// 	} else if(cur_blksize>16*KB && cur_blksize<=32*KB){	//16~32K latency
+// 		iodelay+=40;
+// 	} else if(cur_blksize>8*KB && cur_blksize<=16*KB){	//8~16K latency
+// 		iodelay+=30;
+// 	} else if(cur_blksize>4*KB && cur_blksize<=8*KB){	//4~8K latency
+// 		iodelay+=25;
+// 	} else if(cur_blksize>512 && cur_blksize<=4*KB){	//512B~4K latency
+// 		iodelay+=17;
+// 	} else if(cur_blksize==512){						//512B latency
+// 		iodelay+=19;
+// 	}
 	
-	if(start_addr!=delay_info.last_read_start_lba)
-			delay_info.nr_cur_read_size+=cur_blksize;
-	if(delay_info.nr_cur_read_size>delay_info.rd_cache_sector){
-		uint32_t s = rand()%100;
-		ublk_dbg(UBLK_DBG_IO_CMD,"ublk: s=%d, Read flash",s);
-		if(s>=delay_info.rate_read_high_page){
-			iodelay+=delay_info.lat_read_high_page_us;
-		} else if (s>=delay_info.rate_read_mid_page && s<delay_info.rate_read_high_page){
-			iodelay+=delay_info.lat_read_mid_page_us;
-		} else {
-			iodelay+=delay_info.lat_read_mid_page_us;
-		}
-		delay_info.nr_cur_read_size -= delay_info.rd_cache_sector; /*Reset record value*/
-	}
-	ublk_dbg(UBLK_DBG_IO_CMD,"ublk ddlay: iodelay = %d, Delay delay_info.nr_cur_read_size=%ld", iodelay,delay_info.nr_cur_read_size);
-	return iodelay;
-}
-int ublksrv_lat_pages_write(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize, uint64_t wr_remain_sectors){
-	int iodelay = 0;
-	uint64_t totalsector = delay_info.wr_remain_sectors + nr_sectors;
-	uint64_t smallsector = totalsector % 4096;
-	uint32_t sector_quo = totalsector / delay_info.wr_cache_flush_window_sectors;
-	uint32_t sector_rem = totalsector % delay_info.wr_cache_flush_window_sectors;
-	ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.sector_of_superpage= %d, sector_quo=%d", start_addr, nr_sectors, delay_info.sector_of_superpage, sector_quo);
-	/* Base latency injection */
-	if(nr_sectors>delay_info.sector_of_superpage){ 		//Full channel utilization
-		iodelay+=(181*(nr_sectors/delay_info.sector_of_superpage));
-	} else if(cur_blksize>256*KB && nr_sectors<=delay_info.sector_of_superpage){	//256~512K latency
-		iodelay+=181;
-	} else if(cur_blksize>128*KB && cur_blksize<=256*KB){	//128~256K latency
-		iodelay+=100;
-	} else if(cur_blksize>64*KB && cur_blksize<=128*KB){	//64~128K latency
-		iodelay+=58;
-	} else if(cur_blksize>32*KB && cur_blksize<=64*KB){	//32~64K latency
-		iodelay+=37;
-	} else if(cur_blksize>16*KB && cur_blksize<=32*KB){	//16~32K latency --> TBD
-		iodelay+=26;
-	} else if(cur_blksize>8*KB && cur_blksize<=16*KB){	//8~16K latency --> TBD
-		iodelay+=14;
-	} else if(cur_blksize>4*KB && cur_blksize<=8*KB){	//4~8K latency
-		iodelay+=14;
-	} else if(cur_blksize>512 && cur_blksize<=4*KB){	//512B~4K latency
-		iodelay+=13;
-	} else {						//512B latency
-		iodelay+=10;
-	}
-	/* Cache Flushing latency*/
-	if(iodelay<50 && smallsector==0){
-		ublk_log("wdelay: Small flushing, start_addr=%ld, smallsector=%ld", start_addr, smallsector);
-		iodelay+=(30);
-	} 
-	if (sector_quo>=1 && iodelay<100){
-		ublk_log("wdelay: Add large flushing");
-	 	iodelay+=(80-iodelay+100);
-	}
-	delay_info.total_write_size += nr_sectors;
-	//ublk_log("delay_info.total_write_size = %ld, delay_info.size_GC_reclaim = %d, delay_info.GC_cnt=%d", delay_info.total_write_size, delay_info.size_GC_reclaim, delay_info.GC_cnt);
-	/* BKOPS --> GC */
-	if(delay_info.total_write_size/65536>=1){
-		//ublk_log("delay_info.total_write_size = %ld, delay_info.size_GC_reclaim = %d, delay_info.GC_cnt=%d, PEAK", delay_info.total_write_size, delay_info.size_GC_reclaim, delay_info.GC_cnt);
-		iodelay+=(1000);
-		delay_info.total_write_size%=65536;
-		delay_info.GC_cnt+=1;
-	}
-	if(delay_info.GC_cnt>=1 && delay_info.GC_cnt%11==0){
-		//ublk_log("delay_info.total_write_size = %ld, delay_info.size_GC_reclaim = %d, delay_info.GC_cnt=%d, RESET", delay_info.total_write_size, delay_info.size_GC_reclaim, delay_info.GC_cnt);
-		iodelay+=(9000);
-		// delay_info.total_write_size=delay_info.total_write_size%delay_info.size_GC_reclaim;
-		delay_info.GC_cnt=0;
-	} 
-	/* BKOPS --> Wear-leveling */
+// 	if(start_addr!=delay_info.last_read_start_lba)
+// 			delay_info.nr_cur_read_size+=cur_blksize;
+// 	if(delay_info.nr_cur_read_size>delay_info.rd_cache_sector){
+// 		uint32_t s = rand()%100;
+// 		ublk_dbg(UBLK_DBG_IO_CMD,"ublk: s=%d, Read flash",s);
+// 		if(s>=delay_info.rate_read_high_page){
+// 			iodelay+=delay_info.lat_read_high_page_us;
+// 		} else if (s>=delay_info.rate_read_mid_page && s<delay_info.rate_read_high_page){
+// 			iodelay+=delay_info.lat_read_mid_page_us;
+// 		} else {
+// 			iodelay+=delay_info.lat_read_mid_page_us;
+// 		}
+// 		delay_info.nr_cur_read_size -= delay_info.rd_cache_sector; /*Reset record value*/
+// 	}
+// 	ublk_dbg(UBLK_DBG_IO_CMD,"ublk ddlay: iodelay = %d, Delay delay_info.nr_cur_read_size=%ld", iodelay,delay_info.nr_cur_read_size);
+// 	return iodelay;
+// }
+// int ublksrv_lat_pages_write(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize, uint64_t wr_remain_sectors){
+// 	int iodelay = 0;
+// 	uint64_t totalsector = delay_info.wr_remain_sectors + nr_sectors;
+// 	uint64_t smallsector = totalsector % 4096;
+// 	uint32_t sector_quo = totalsector / delay_info.wr_cache_flush_window_sectors;
+// 	uint32_t sector_rem = totalsector % delay_info.wr_cache_flush_window_sectors;
+// 	ublk_dbg(UBLK_DBG_IO_CMD,"start_addr=%ld, nr_sectors=%d, delay_info.sector_of_superpage= %d, sector_quo=%d", start_addr, nr_sectors, delay_info.sector_of_superpage, sector_quo);
+// 	/* Base latency injection */
+// 	if(nr_sectors>delay_info.sector_of_superpage){ 		//Full channel utilization
+// 		iodelay+=(181*(nr_sectors/delay_info.sector_of_superpage));
+// 	} else if(cur_blksize>256*KB && nr_sectors<=delay_info.sector_of_superpage){	//256~512K latency
+// 		iodelay+=181;
+// 	} else if(cur_blksize>128*KB && cur_blksize<=256*KB){	//128~256K latency
+// 		iodelay+=100;
+// 	} else if(cur_blksize>64*KB && cur_blksize<=128*KB){	//64~128K latency
+// 		iodelay+=58;
+// 	} else if(cur_blksize>32*KB && cur_blksize<=64*KB){	//32~64K latency
+// 		iodelay+=37;
+// 	} else if(cur_blksize>16*KB && cur_blksize<=32*KB){	//16~32K latency --> TBD
+// 		iodelay+=26;
+// 	} else if(cur_blksize>8*KB && cur_blksize<=16*KB){	//8~16K latency --> TBD
+// 		iodelay+=14;
+// 	} else if(cur_blksize>4*KB && cur_blksize<=8*KB){	//4~8K latency
+// 		iodelay+=14;
+// 	} else if(cur_blksize>512 && cur_blksize<=4*KB){	//512B~4K latency
+// 		iodelay+=13;
+// 	} else {						//512B latency
+// 		iodelay+=10;
+// 	}
+// 	/* Cache Flushing latency*/
+// 	if(iodelay<50 && smallsector==0){
+// 		ublk_log("wdelay: Small flushing, start_addr=%ld, smallsector=%ld", start_addr, smallsector);
+// 		iodelay+=(30);
+// 	} 
+// 	if (sector_quo>=1 && iodelay<100){
+// 		ublk_log("wdelay: Add large flushing");
+// 	 	iodelay+=(80-iodelay+100);
+// 	}
+// 	delay_info.total_write_size += nr_sectors;
+// 	//ublk_log("delay_info.total_write_size = %ld, delay_info.size_GC_reclaim = %d, delay_info.GC_cnt=%d", delay_info.total_write_size, delay_info.size_GC_reclaim, delay_info.GC_cnt);
+// 	/* BKOPS --> GC */
+// 	if(delay_info.total_write_size/65536>=1){
+// 		//ublk_log("delay_info.total_write_size = %ld, delay_info.size_GC_reclaim = %d, delay_info.GC_cnt=%d, PEAK", delay_info.total_write_size, delay_info.size_GC_reclaim, delay_info.GC_cnt);
+// 		iodelay+=(1000);
+// 		delay_info.total_write_size%=65536;
+// 		delay_info.GC_cnt+=1;
+// 	}
+// 	if(delay_info.GC_cnt>=1 && delay_info.GC_cnt%11==0){
+// 		//ublk_log("delay_info.total_write_size = %ld, delay_info.size_GC_reclaim = %d, delay_info.GC_cnt=%d, RESET", delay_info.total_write_size, delay_info.size_GC_reclaim, delay_info.GC_cnt);
+// 		iodelay+=(9000);
+// 		// delay_info.total_write_size=delay_info.total_write_size%delay_info.size_GC_reclaim;
+// 		delay_info.GC_cnt=0;
+// 	} 
+// 	/* BKOPS --> Wear-leveling */
 
-	/* Update pending write blocks*/
-	delay_info.wr_remain_sectors = sector_rem;
+// 	/* Update pending write blocks*/
+// 	delay_info.wr_remain_sectors = sector_rem;
 	
-	ublk_dbg(UBLK_DBG_IO_CMD,"ublk wdelay: iodelay = %d, start_addr=%ld, nr_sectors=%d sector_quo=%d, delay_info.wr_remain_sectors=%d"
-								, iodelay, start_addr, nr_sectors, sector_quo, delay_info.wr_remain_sectors);
-	return iodelay;
-}
-int ublksrv_io_delay_cal(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr){
-	uint32_t s = 0;
-	int iodelay = 0;
-	uint64_t cur_blksize = nr_sectors * delay_info.device_sector;
-	srand(time(NULL)); //Jeff add for increase randomizer reliability
-	//ublk_log("Start: total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
-	switch (ublk_op) {
-		case UBLK_IO_OP_FLUSH:
-			break;
-		case UBLK_IO_OP_WRITE_SAME:
-		case UBLK_IO_OP_WRITE_ZEROES:
-		case UBLK_IO_OP_DISCARD:
-			break;
-		case UBLK_IO_OP_READ:		
-			//ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start\n");
-			if(start_addr == delay_info.last_read_end_lba || 
-				start_addr == delay_info.last_read_start_lba){ //Sequential Read
-				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start for sequential read\n");
-				iodelay += ublksrv_lat_pages_read(nr_sectors, start_addr, cur_blksize); // Add measured latency by page size
-			} else { //Random Read
-				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start for random read\n");
-				s = 100-rand()%100; 
-				iodelay += ublksrv_lat_pages_read(nr_sectors, start_addr, cur_blksize);
-				if(s >= delay_info.rate_read_page_fault){	/* page is not in cache */
-					iodelay += (delay_info.lat_sys_page_read_us);
-				} else if(s >= delay_info.rate_read_channel_contention){ /* Channel contention proability */
-					iodelay *= delay_info.lat_read_channel_contention;
-				}
-			}
-			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
+// 	ublk_dbg(UBLK_DBG_IO_CMD,"ublk wdelay: iodelay = %d, start_addr=%ld, nr_sectors=%d sector_quo=%d, delay_info.wr_remain_sectors=%d"
+// 								, iodelay, start_addr, nr_sectors, sector_quo, delay_info.wr_remain_sectors);
+// 	return iodelay;
+// // }
+// int ublksrv_io_delay_cal(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_addr){
+// 	uint32_t s = 0;
+// 	int iodelay = 0;
+// 	uint64_t cur_blksize = nr_sectors * delay_info.device_sector;
+// 	srand(time(NULL)); //Jeff add for increase randomizer reliability
+// 	//ublk_log("Start: total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
+// 	switch (ublk_op) {
+// 		case UBLK_IO_OP_FLUSH:
+// 			break;
+// 		case UBLK_IO_OP_WRITE_SAME:
+// 		case UBLK_IO_OP_WRITE_ZEROES:
+// 		case UBLK_IO_OP_DISCARD:
+// 			break;
+// 		case UBLK_IO_OP_READ:		
+// 			//ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start\n");
+// 			if(start_addr == delay_info.last_read_end_lba || 
+// 				start_addr == delay_info.last_read_start_lba){ //Sequential Read
+// 				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start for sequential read\n");
+// 				iodelay += ublksrv_lat_pages_read(nr_sectors, start_addr, cur_blksize); // Add measured latency by page size
+// 			} else { //Random Read
+// 				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay add start for random read\n");
+// 				s = 100-rand()%100; 
+// 				iodelay += ublksrv_lat_pages_read(nr_sectors, start_addr, cur_blksize);
+// 				if(s >= delay_info.rate_read_page_fault){	/* page is not in cache */
+// 					iodelay += (delay_info.lat_sys_page_read_us);
+// 				} else if(s >= delay_info.rate_read_channel_contention){ /* Channel contention proability */
+// 					iodelay *= delay_info.lat_read_channel_contention;
+// 				}
+// 			}
+// 			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
 
-			/* update start/end lba */
-			delay_info.last_read_start_lba=start_addr;
-			delay_info.last_read_end_lba=start_addr+nr_sectors;
+// 			/* update start/end lba */
+// 			delay_info.last_read_start_lba=start_addr;
+// 			delay_info.last_read_end_lba=start_addr+nr_sectors;
 
-			/* Restrict IOPS for ensure the latency boundary*/
-			if (iodelay<10){
-				iodelay=10; /* Restrict IOPS, should add latency accorrding to block size*/
-				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
-			}
-			break;
-		case UBLK_IO_OP_WRITE: 
-			/*iodelay += delay_info.base_lat;
-			s = rand()%100;	
-			iodelay += ((uint64_t)(676*log(s)+880)*sector_quo);*/
-			iodelay+=ublksrv_lat_pages_write(nr_sectors, start_addr, cur_blksize, delay_info.wr_remain_sectors);
-			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
-			if (iodelay<10){
-				iodelay=10; /* Restrict IOPS, should add latency accorrding to block size*/
-				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
-			}
-			break;
-		default:
-			break;
-	}
+// 			/* Restrict IOPS for ensure the latency boundary*/
+// 			if (iodelay<10){
+// 				iodelay=10; /* Restrict IOPS, should add latency accorrding to block size*/
+// 				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
+// 			}
+// 			break;
+// 		case UBLK_IO_OP_WRITE: 
+// 			/*iodelay += delay_info.base_lat;
+// 			s = rand()%100;	
+// 			iodelay += ((uint64_t)(676*log(s)+880)*sector_quo);*/
+// 			iodelay+=ublksrv_lat_pages_write(nr_sectors, start_addr, cur_blksize, delay_info.wr_remain_sectors);
+// 			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
+// 			if (iodelay<10){
+// 				iodelay=10; /* Restrict IOPS, should add latency accorrding to block size*/
+// 				ublk_dbg(UBLK_DBG_IO_CMD,"ublk: Delay number is negtive, RESET delay latency to 0\n");
+// 			}
+// 			break;
+// 		default:
+// 			break;
+// 	}
 
-	// ublk_dbg(UBLK_DBG_IO_CMD,"end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d\n", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);	
-	// ublk_log("End: total ddlay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d\n", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
-	return iodelay;
-}
+// 	// ublk_dbg(UBLK_DBG_IO_CMD,"end = total delay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d\n", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);	
+// 	// ublk_log("End: total ddlay = %d, delay_info.remain_sectors = %d, totalblk = %ld, sector_quo = %d, sector_rem = %d\n", iodelay, delay_info.remain_sectors,totalblk, sector_quo, sector_rem);
+// 	return iodelay;
+// }
 /* PM1733 */
 // int lat_R_4096[102]={30.0, 50.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 90.0, 90.0, 90.0, 90.0, 100.0, 100.0, 100.0, 110.0, 110.0, 120.0, 120.0, 130.0, 130.0, 140.0, 150.0, 160.0, 200.0, 400.0};
 // int lat_R_8192[102]={30.0, 30.0, 30.0, 40.0, 60.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 110.0, 110.0, 110.0, 110.0, 110.0, 120.0, 120.0, 120.0, 120.0, 120.0, 130.0, 130.0, 130.0, 130.0, 140.0, 140.0, 140.0, 150.0, 150.0, 150.0, 160.0, 160.0, 170.0, 180.0, 190.0, 200.0, 240.0, 490.0};
@@ -436,7 +342,7 @@ int lat_R_32768[102]={88, 99, 100, 100, 112, 113, 116, 116, 117, 118, 118, 120, 
 int lat_R_65536[102]={88, 100, 100, 101, 112, 116, 119, 120, 120, 120, 121, 124, 125, 126, 127, 132, 133, 135, 136, 138, 138, 138, 138, 138, 138, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 139, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 145, 146, 146, 150, 153, 159, 161, 163, 163, 163, 163, 163, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 165, 165, 165, 165};
 int lat_R_131072[102]={93, 107, 108, 109, 121, 124, 127, 128, 128, 129, 129, 132, 133, 134, 135, 139, 141, 143, 143, 145, 146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 148, 148, 148, 153, 154, 155, 158, 163, 167, 168, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 172, 172, 172, 172, 172, 172, 172, 172, 172, 172, 172, 172, 173, 173};
 
-int ublksrv_lat_pages_read_prob(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize, uint64_t wr_remain_sectors){
+int ublksrv_lat_pages_read_prob(uint32_t nr_sectors, uint64_t start_addr, uint64_t cur_blksize){
 	srand(time(NULL)); //Jeff add for increase randomizer reliability
 	uint32_t iodelay = 0;
 
@@ -468,112 +374,10 @@ int ublksrv_lat_pages_read_prob(uint32_t nr_sectors, uint64_t start_addr, uint64
 			iodelay+=10;
 			break;
 	}
-	/* PM 1733 */
-	// switch (cur_blksize){
-	// 	case 4096:
-	// 		iodelay+=lat_R_4096[s];
-	// 		break;
-	// 	case 8192:
-	// 		iodelay+=lat_R_8192[s];
-	// 		break;
-	// 	case 12288:
-	// 		iodelay+=lat_R_12288[s];
-	// 		break;
-	// 	case 16384:
-	// 		iodelay+=lat_R_16384[s];
-	// 		break;
-	// 	case 20480:
-	// 		iodelay+=lat_R_20480[s];
-	// 		break;
-	// 	case 24576:
-	// 		iodelay+=lat_R_24576[s];
-	// 		break;
-	// 	case 28672:
-	// 		iodelay+=lat_R_28672[s];
-	// 		break;
-	// 	case 32768:
-	// 		iodelay+=lat_R_32768[s];
-	// 		break;
-	// 	case 36864:
-	// 		iodelay+=lat_R_36864[s];
-	// 		break;
-	// 	case 40960:
-	// 		iodelay+=lat_R_40960[s];
-	// 		break;
-	// 	case 45056:
-	// 		iodelay+=lat_R_45056[s];
-	// 		break;
-	// 	case 49152:
-	// 		iodelay+=lat_R_49152[s];
-	// 		break;
-	// 	case 53248:
-	// 		iodelay+=lat_R_53248[s];
-	// 		break;
-	// 	case 57344:
-	// 		iodelay+=lat_R_57344[s];
-	// 		break;
-	// 	case 61440:
-	// 		iodelay+=lat_R_61440[s];
-	// 		break;
-	// 	case 65536:
-	// 		iodelay+=lat_R_65536[s];
-	// 		break;
-	// 	case 69632:
-	// 		iodelay+=lat_R_69632[s];
-	// 		break;
-	// 	case 73728:
-	// 		iodelay+=lat_R_73728[s];
-	// 		break;
-	// 	case 77824:
-	// 		iodelay+=lat_R_77824[s];
-	// 		break;
-	// 	case 81920:
-	// 		iodelay+=lat_R_81920[s];
-	// 		break;
-	// 	case 86016:
-	// 		iodelay+=lat_R_86016[s];
-	// 		break;
-	// 	case 90112:
-	// 		iodelay+=lat_R_90112[s];
-	// 		break;
-	// 	case 94208:
-	// 		iodelay+=lat_R_94208[s];
-	// 		break;
-	// 	case 98304:
-	// 		iodelay+=lat_R_98304[s];
-	// 		break;
-	// 	case 102400:
-	// 		iodelay+=lat_R_102400[s];
-	// 		break;
-	// 	case 106496:
-	// 		iodelay+=lat_R_106496[s];
-	// 		break;
-	// 	case 110592:
-	// 		iodelay+=lat_R_110592[s];
-	// 		break;
-	// 	case 114688:
-	// 		iodelay+=lat_R_114688[s];
-	// 		break;
-	// 	case 118784:
-	// 		iodelay+=lat_R_118784[s];
-	// 		break;
-	// 	case 122880:
-	// 		iodelay+=lat_R_122880[s];
-	// 		break;
-	// 	case 126976:
-	// 		iodelay+=lat_R_126976[s];
-	// 		break;
-	// 	case 131072:
-	// 		iodelay+=lat_R_131072[s];
-	// 		break;
-	// 	default:
-	// 		iodelay+=10;
-	// 		break;
-	// }
 
 	/* End */
-	ublk_dbg(UBLK_DBG_IO_CMD,"ublk r_delay: iodelay = %d, start_addr=%ld, nr_sectors=%d, delay_info.wr_remain_sectors=%d"
-								, iodelay, start_addr, nr_sectors, delay_info.wr_remain_sectors);
+	ublk_dbg(UBLK_DBG_IO_CMD,"ublk r_delay: iodelay = %d, start_addr=%ld, nr_sectors=%d"
+								, iodelay, start_addr, nr_sectors);
 	return iodelay;
 }
 // Update latency by profiling latency model
@@ -588,7 +392,7 @@ int ublksrv_io_delay_prob(uint32_t ublk_op, uint32_t nr_sectors, uint64_t start_
 		case UBLK_IO_OP_DISCARD:
 			break;
 		case UBLK_IO_OP_READ:
-			iodelay+=ublksrv_lat_pages_read_prob(nr_sectors, start_addr, nr_sectors * delay_info.device_sector, delay_info.wr_remain_sectors);
+			iodelay+=ublksrv_lat_pages_read_prob(nr_sectors, start_addr, nr_sectors * delay_info.device_sector);
 			iodelay -= (delay_info.base_ublk_lat_us + delay_info.base_ublk_slat_us); //Correct the latency which induced by basic operation and s_lat << KCC
 			if (iodelay<10){
 				iodelay=10; /* Restrict IOPS, should add latency accorrding to block size*/
